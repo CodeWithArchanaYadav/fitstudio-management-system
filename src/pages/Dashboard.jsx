@@ -1,73 +1,23 @@
-
-
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-const stats = [
-  {
-    title: "Total Members",
-    value: "248",
-    note: "Registered members",
-    icon: "👥",
-  },
-  {
-    title: "Active Memberships",
-    value: "186",
-    note: "Currently active",
-    icon: "💳",
-  },
-  {
-    title: "Today's Attendance",
-    value: "42",
-    note: "Check-ins today",
-    icon: "📋",
-  },
-  {
-    title: "Monthly Revenue",
-    value: "₹84,500",
-    note: "Sample revenue",
-    icon: "₹",
-  },
-];
-
-const attendance = [
-  { day: "Mon", count: 32 },
-  { day: "Tue", count: 45 },
-  { day: "Wed", count: 38 },
-  { day: "Thu", count: 52 },
-  { day: "Fri", count: 42 },
-  { day: "Sat", count: 64 },
-  { day: "Sun", count: 25 },
-];
-
-const recentMembers = [
-  {
-    name: "Rahul Sharma",
-    email: "rahul@example.com",
-    plan: "Monthly",
-    status: "Active",
-  },
-  {
-    name: "Priya Singh",
-    email: "priya@example.com",
-    plan: "Quarterly",
-    status: "Active",
-  },
-  {
-    name: "Amit Kumar",
-    email: "amit@example.com",
-    plan: "Yearly",
-    status: "Inactive",
-  },
-];
-
-const expiringMemberships = [
-  { name: "Neha Verma", plan: "Monthly", date: "25 Oct 2026" },
-  { name: "Rohit Gupta", plan: "Quarterly", date: "28 Oct 2026" },
-  { name: "Anjali Singh", plan: "Monthly", date: "31 Oct 2026" },
-];
+import api from "../api";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [attendance, setAttendance] = useState([]);
+
+  useEffect(() => {
+    api.get("/api/dashboard/stats").then((res) => setStats(res.data));
+    api.get("/api/dashboard/attendance").then((res) => setAttendance(res.data));
+  }, []);
+
+  const statCards = stats ? [
+    { title: "Total Members",      value: stats.totalMembers,    note: "Registered members", icon: "👥" },
+    { title: "Active Memberships", value: stats.activeMembers,   note: "Currently active",   icon: "💳" },
+    { title: "Inactive Members",   value: stats.inactiveMembers, note: "Currently inactive", icon: "📋" },
+    { title: "Monthly Revenue",    value: stats.monthlyRevenue,  note: "Sample revenue",     icon: "₹"  },
+  ] : [];
 
   return (
     <section className="dashboard-page">
@@ -75,21 +25,13 @@ function Dashboard() {
         <div>
           <p className="dashboard-eyebrow">OVERVIEW</p>
           <h1>Dashboard</h1>
-          <p className="page-subtitle">
-            Welcome back! Here's your gym's performance at a glance.
-          </p>
+          <p className="page-subtitle">Welcome back! Here's your gym's performance at a glance.</p>
         </div>
-
-        <button
-          className="primary-button"
-          onClick={() => navigate("/members")}
-        >
-          + Add Member
-        </button>
+        <button className="primary-button" onClick={() => navigate("/members")}>+ Add Member</button>
       </div>
 
       <div className="stats-grid">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <article className="stat-card" key={stat.title}>
             <div className="stat-top">
               <p>{stat.title}</p>
@@ -110,7 +52,6 @@ function Dashboard() {
             </div>
             <span className="chart-label">Last 7 days</span>
           </div>
-
           <div className="attendance-chart">
             {attendance.map((item) => (
               <div className="chart-column" key={item.day}>
@@ -131,88 +72,14 @@ function Dashboard() {
         <section className="content-card reminders-card">
           <div className="section-heading">
             <div>
-              <h2>Expiring Memberships</h2>
-              <p>Upcoming renewal dates</p>
+              <h2>Recent Members</h2>
+              <p>Overview of recently registered members</p>
             </div>
-            <span className="reminder-icon">!</span>
+            <button className="text-button" onClick={() => navigate("/members")}>View All →</button>
           </div>
-
-          <div className="reminder-list">
-            {expiringMemberships.map((member) => (
-              <div className="reminder-item" key={member.name}>
-                <div className="member-avatar">
-                  {member.name.charAt(0)}
-                </div>
-                <div className="reminder-info">
-                  <strong>{member.name}</strong>
-                  <span>{member.plan} plan</span>
-                </div>
-                <span className="expiry-date">{member.date}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            className="text-button"
-            onClick={() => navigate("/members")}
-          >
-            View Members →
-          </button>
+          <p style={{ color: "#57606a", padding: "1rem 0" }}>Go to Members page to manage all records.</p>
         </section>
       </div>
-
-      <section className="content-card recent-members-card">
-        <div className="section-heading">
-          <div>
-            <h2>Recent Members</h2>
-            <p>Overview of recently registered members</p>
-          </div>
-          <button
-            className="text-button"
-            onClick={() => navigate("/members")}
-          >
-            View All →
-          </button>
-        </div>
-
-        <div className="table-wrapper">
-          <table className="members-table">
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Membership Plan</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentMembers.map((member) => (
-                <tr key={member.email}>
-                  <td>
-                    <strong>{member.name}</strong>
-                    <small>{member.email}</small>
-                  </td>
-                  <td>{member.plan}</td>
-                  <td>
-                    <span
-                      className={`status-badge ${
-                        member.status === "Active"
-                          ? "status-active"
-                          : "status-inactive"
-                      }`}
-                    >
-                      {member.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <p className="dashboard-disclaimer">
-        Demo dashboard · Figures shown are sample data, not live records.
-      </p>
     </section>
   );
 }
