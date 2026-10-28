@@ -1,19 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { apiRequest } from '../api';
 
-/**
- * TrainerDashboard Page
- * Personal trainer interface for managing clients, workouts, and sessions.
- * Sections:
- * 1. Overview
- * 2. Assigned Members
- * 3. Workouts
- * 4. Schedule
- */
 function TrainerDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [notice, setNotice] = useState('');
+
+  const [assignedMembers, setAssignedMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  const [workouts, setWorkouts] = useState([]);
+  const [workoutsLoading, setWorkoutsLoading] = useState(false);
+
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'overview' || activeTab === 'assigned-members') {
+      setMembersLoading(true);
+      apiRequest('/trainer/me/members').then(setAssignedMembers).catch(() => {}).finally(() => setMembersLoading(false));
+    }
+    if (activeTab === 'overview' || activeTab === 'workouts') {
+      setWorkoutsLoading(true);
+      apiRequest('/workouts').then(setWorkouts).catch(() => {}).finally(() => setWorkoutsLoading(false));
+    }
+    if (activeTab === 'schedule') {
+      setSessionsLoading(true);
+      apiRequest('/sessions').then(setSessions).catch(() => setNotice('Failed to load sessions.')).finally(() => setSessionsLoading(false));
+    }
+  }, [activeTab]);
 
   return (
     <div>
@@ -32,7 +48,7 @@ function TrainerDashboard() {
         <main className="dashboard-main">
           <header className="dashboard-header">
             <h1>Trainer Dashboard</h1>
-            <p>Client Workouts, Progress & Training Sessions</p>
+            <p>Client Workouts, Progress &amp; Training Sessions</p>
           </header>
 
           {notice && (
@@ -41,21 +57,20 @@ function TrainerDashboard() {
             </div>
           )}
 
-          {/* 1. Overview Tab */}
           {activeTab === 'overview' && (
             <div>
               <div className="grid-3 mb-3">
                 <div className="stat-card">
                   <div className="stat-label">Assigned Clients</div>
-                  <div className="stat-value">0</div>
+                  <div className="stat-value">{membersLoading ? '…' : assignedMembers.length}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Today's Sessions</div>
-                  <div className="stat-value">0</div>
+                  <div className="stat-value">{sessionsLoading ? '…' : sessions.filter(s => s.today || s.isToday).length}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Active Workout Plans</div>
-                  <div className="stat-value">0</div>
+                  <div className="stat-value">{workoutsLoading ? '…' : workouts.length}</div>
                 </div>
               </div>
 
@@ -81,7 +96,6 @@ function TrainerDashboard() {
             </div>
           )}
 
-          {/* 2. Assigned Members Tab */}
           {activeTab === 'assigned-members' && (
             <div className="card">
               <div className="card-header">
@@ -102,27 +116,44 @@ function TrainerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No assigned clients found.
-                      </td>
-                    </tr>
+                    {membersLoading ? (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Loading…</td></tr>
+                    ) : assignedMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                          No assigned clients found.
+                        </td>
+                      </tr>
+                    ) : assignedMembers.map((m) => (
+                      <tr key={m.id}>
+                        <td>{m.fullName || m.name}</td>
+                        <td>{m.goal || '—'}</td>
+                        <td>
+                          <span className={`badge ${m.status === 'ACTIVE' || m.active ? 'badge-green' : 'badge-gray'}`}>
+                            {m.status || (m.active ? 'Active' : 'Inactive')}
+                          </span>
+                        </td>
+                        <td>{m.lastSession || '—'}</td>
+                        <td>
+                          <button type="button" className="btn btn-secondary btn-sm"
+                            onClick={() => setActiveTab('workouts')}>
+                            View Workouts
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* 3. Workouts Tab */}
           {activeTab === 'workouts' && (
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">Workout Plans & Routines</h2>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setNotice('Unable to create workout routine at this time. Please try again later.')}
-                >
+                <h2 className="card-title">Workout Plans &amp; Routines</h2>
+                <button type="button" className="btn btn-primary btn-sm"
+                  onClick={() => setNotice('Use the Workouts page to create routines.')}>
                   + Add Workout Routine
                 </button>
               </div>
@@ -141,22 +172,38 @@ function TrainerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No workout routines found.
-                      </td>
-                    </tr>
+                    {workoutsLoading ? (
+                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Loading…</td></tr>
+                    ) : workouts.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                          No workout routines found.
+                        </td>
+                      </tr>
+                    ) : workouts.map((w) => (
+                      <tr key={w.id}>
+                        <td>{w.title || w.name}</td>
+                        <td>{w.targetMuscle || w.goal || '—'}</td>
+                        <td>{w.difficulty || '—'}</td>
+                        <td>{w.exerciseCount || (w.exercises ? w.exercises.split(',').length : '—')}</td>
+                        <td>
+                          <button type="button" className="btn btn-secondary btn-sm"
+                            onClick={() => setNotice('Workout editing available on the Workouts page.')}>
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* 4. Schedule Tab */}
           {activeTab === 'schedule' && (
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">Training Schedule & Sessions</h2>
+                <h2 className="card-title">Training Schedule &amp; Sessions</h2>
               </div>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
                 Your weekly calendar of personal training sessions.
@@ -172,11 +219,26 @@ function TrainerDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No sessions scheduled for this week.
-                      </td>
-                    </tr>
+                    {sessionsLoading ? (
+                      <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Loading…</td></tr>
+                    ) : sessions.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                          No sessions scheduled for this week.
+                        </td>
+                      </tr>
+                    ) : sessions.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.timeSlot || s.scheduledAt || '—'}</td>
+                        <td>{s.clientName || s.memberName || '—'}</td>
+                        <td>{s.focus || s.sessionFocus || '—'}</td>
+                        <td>
+                          <span className={`badge ${s.status === 'COMPLETED' ? 'badge-green' : s.status === 'CANCELLED' ? 'badge-gray' : 'badge-blue'}`}>
+                            {s.status || 'Scheduled'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
