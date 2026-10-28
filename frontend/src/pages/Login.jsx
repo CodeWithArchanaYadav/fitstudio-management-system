@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { login } from '../api';
 
-/**
- * Login Page
- * Unified login form for all FitStudio roles (Admin, Receptionist, Trainer, Member).
- * Clean, production-ready form ready for integration with the Spring Boot authentication API.
- */
+const ROLE_ROUTES = {
+  ADMIN: '/admin',
+  RECEPTIONIST: '/receptionist',
+  TRAINER: '/trainer',
+  MEMBER: '/member',
+};
+
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Standard client-side form validation
     if (!email.trim()) {
       setErrorMessage('Please enter your email address.');
       return;
@@ -25,17 +30,23 @@ function Login() {
       return;
     }
 
-    // Graceful error handling when authentication service is unavailable
-    setErrorMessage('Unable to connect to authentication service. Please check your network or try again later.');
+    setLoading(true);
+    try {
+      const data = await login(email, password);
+      const route = ROLE_ROUTES[data.role] || '/';
+      navigate(route, { replace: true });
+    } catch (err) {
+      setErrorMessage('Invalid email or password.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
       <Navbar />
-
       <main style={{ minHeight: 'calc(100vh - 70px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div className="card" style={{ width: '100%', maxWidth: '440px', padding: '2rem' }}>
-          {/* FitStudio Header */}
           <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '0.25rem' }}>
               Fit<span style={{ color: 'var(--color-primary)' }}>Studio</span>
@@ -45,19 +56,15 @@ function Login() {
             </p>
           </div>
 
-          {/* Error Banner */}
           {errorMessage && (
             <div className="notice-box notice-error" style={{ marginBottom: '1.25rem' }}>
               {errorMessage}
             </div>
           )}
 
-          {/* Login Form */}
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="login-email" className="form-label">
-                Email Address
-              </label>
+              <label htmlFor="login-email" className="form-label">Email Address</label>
               <input
                 id="login-email"
                 type="email"
@@ -67,11 +74,8 @@ function Login() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-
             <div className="form-group">
-              <label htmlFor="login-password" className="form-label">
-                Password
-              </label>
+              <label htmlFor="login-password" className="form-label">Password</label>
               <input
                 id="login-password"
                 type="password"
@@ -81,9 +85,8 @@ function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-
-            <button type="submit" className="btn btn-primary btn-full mt-2">
-              Sign In
+            <button type="submit" className="btn btn-primary btn-full mt-2" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
         </div>
