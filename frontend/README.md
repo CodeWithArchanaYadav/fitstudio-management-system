@@ -103,7 +103,7 @@ Fit-Studio-Frontend/
 | **Admin (Gym Owner)** | Oversees business health, total revenues, and creates staff accounts (Receptionists & Trainers). Configures membership plans and reassigns trainers. *(Does not manage routine daily payments or workout logs).* | Overview, Members, Staff Management, Membership Plans, Trainer Assignments, Reports & Analytics, Profile |
 | **Receptionist** | Handles front-desk administrative duties: member registrations, plan enrollments, renewals, recording fee payments, and printing customer receipts. Can create Trainer accounts. *(Cannot create Admin or Receptionist accounts).* | Overview, Members, Trainers, Memberships, Payments, Profile |
 | **Trainer** | Manages assigned athletes only. Builds workout routines (exercises, muscle groups, sets, reps, rest intervals), views remaining membership days, and schedules 1-on-1 sessions. *(Cannot access billing records or unrelated members).* | Overview, Assigned Members, Workouts, Schedule, Profile |
-| **Member** | Self-service portal: views remaining membership days, current workout routine with interactive completion checkboxes, track fitness progress, coach profile, and personal fee payment receipts. *(Read-only access to plans and cannot alter trainer assignments).* | Overview, My Membership, My Workouts, My Trainer, Payment History, Profile |
+| **Member** | Self-service portal: views remaining membership days, current workout routine with interactive completion checkboxes, coach profile, and personal fee payment receipts. *(Read-only access to plans and cannot alter trainer assignments).* | Overview, My Membership, My Workouts, My Trainer, Payment History, Profile |
 
 ---
 

@@ -1,251 +1,207 @@
-import React, { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import { apiRequest } from '../api';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useGymData } from '../services/gymData';
 
+/**
+ * MemberDashboard Page
+ * Overview dashboard for gym members.
+ * Connected to the shared FitStudio data layer.
+ * Displays member's real assigned trainer and prescribed workout plan.
+ * Renders within the shared DashboardLayout.
+ */
 function MemberDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  const [membership, setMembership] = useState(null);
-  const [trainer, setTrainer] = useState(null);
-  const [workouts, setWorkouts] = useState([]);
-  const [membershipLoading, setMembershipLoading] = useState(false);
-  const [trainerLoading, setTrainerLoading] = useState(false);
-  const [workoutsLoading, setWorkoutsLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'overview' || activeTab === 'membership') {
-      setMembershipLoading(true);
-      apiRequest('/me/membership').then(setMembership).catch(() => {}).finally(() => setMembershipLoading(false));
-    }
-    if (activeTab === 'overview' || activeTab === 'trainer') {
-      setTrainerLoading(true);
-      apiRequest('/me/trainer').then(setTrainer).catch(() => {}).finally(() => setTrainerLoading(false));
-    }
-    if (activeTab === 'workouts') {
-      setWorkoutsLoading(true);
-      apiRequest('/me/workouts').then(setWorkouts).catch(() => {}).finally(() => setWorkoutsLoading(false));
-    }
-  }, [activeTab]);
-
-  const daysRemaining = () => {
-    if (!membership || !membership.expiryDate) return '—';
-    const diff = Math.ceil((new Date(membership.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 0;
-  };
+  const {
+    members,
+    activeMember,
+    activeMemberId,
+    setActiveMemberId,
+    memberTrainer,
+    memberWorkout,
+  } = useGymData();
 
   return (
     <div>
-      <Navbar />
+      {/* Prototype Member Selector Banner */}
+      <div className="card mb-3" style={{ padding: '0.75rem 1.25rem', backgroundColor: 'var(--color-surface)' }}>
+        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Active Member Overview:
+            </span>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+              {activeMember ? `${activeMember.fullName} (${activeMember.id})` : 'Member'}
+            </strong>
+            <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
+              {activeMember?.plan}
+            </span>
+          </div>
 
-      <div className="dashboard-layout">
-        <Sidebar
-          role="member"
-          activeItem={activeTab}
-          onSelect={(tabId) => setActiveTab(tabId)}
-        />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label htmlFor="switch-member-dash" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+              Switch Member Preview:
+            </label>
+            <select
+              id="switch-member-dash"
+              className="form-select"
+              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
+              value={activeMemberId}
+              onChange={(e) => setActiveMemberId(e.target.value)}
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.fullName} ({m.id})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
-        <main className="dashboard-main">
-          <header className="dashboard-header">
-            <h1>Member Dashboard</h1>
-            <p>Your FitStudio Membership &amp; Fitness Plan</p>
-          </header>
+      <header className="dashboard-header">
+        <h1>Member Dashboard</h1>
+        <p>Welcome back, {activeMember?.fullName}! Here is your FitStudio membership overview.</p>
+      </header>
 
-          {activeTab === 'overview' && (
+      {/* Member Stat Cards */}
+      <div className="grid-4 mb-3">
+        <div className="stat-card">
+          <div className="stat-label">Membership Status</div>
+          <div
+            className="stat-value"
+            style={{ color: activeMember?.status === 'Active' ? 'var(--color-primary)' : 'var(--color-danger)' }}
+          >
+            {activeMember?.status || 'Active'}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Assigned Plan</div>
+          <div className="stat-value" style={{ fontSize: '1.25rem', paddingTop: '0.35rem' }}>
+            {activeMember?.plan ? activeMember.plan.split(' ')[0] + ' Tier' : 'Standard'}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Assigned Personal Trainer</div>
+          <div className="stat-value" style={{ fontSize: '1.2rem', paddingTop: '0.35rem', color: memberTrainer ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+            {memberTrainer ? memberTrainer.name : 'Unassigned'}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Prescribed Routine</div>
+          <div className="stat-value" style={{ fontSize: '1.2rem', paddingTop: '0.35rem', color: memberWorkout ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
+            {memberWorkout ? 'Active Plan' : 'None'}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Navigation Cards */}
+      <div className="card mb-3">
+        <div className="card-header">
+          <h2 className="card-title">Member Quick Navigation</h2>
+        </div>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
+          Access your personal fitness records, membership details, and payment invoices:
+        </p>
+        <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
+          <Link to="/member/profile" className="btn btn-secondary">
+            👤 My Complete Profile
+          </Link>
+          <Link to="/member/workouts" className="btn btn-primary">
+            🏋️ My Assigned Workouts {memberWorkout && '✓'}
+          </Link>
+          <Link to="/member/membership" className="btn btn-secondary">
+            📋 My Membership Plan
+          </Link>
+          <Link to="/member/payments" className="btn btn-secondary">
+            💳 My Invoices & Receipts
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        {/* Today's Workout Routine Preview from Shared Store */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Assigned Workout Routine Preview</h3>
+            {memberWorkout ? (
+              <span className="badge badge-green">Prescribed</span>
+            ) : (
+              <span className="badge badge-gray">Not Assigned</span>
+            )}
+          </div>
+
+          {memberWorkout ? (
             <div>
-              <div className="grid-3 mb-3">
-                <div className="stat-card">
-                  <div className="stat-label">Membership Status</div>
-                  <div className="stat-value">
-                    {membershipLoading ? '…' : (membership ? (membership.status || 'Active') : 'None')}
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Days Remaining</div>
-                  <div className="stat-value">{membershipLoading ? '…' : daysRemaining()}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Assigned Trainer</div>
-                  <div className="stat-value">
-                    {trainerLoading ? '…' : (trainer ? (trainer.name || trainer.fullName) : 'None')}
-                  </div>
-                </div>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.35rem', color: 'var(--color-text)' }}>
+                {memberWorkout.planName}
               </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">My Fitness Dashboard</h2>
-                </div>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                  Quick links to your membership details, assigned trainer, routine logs, and payment receipts:
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', marginBottom: '1rem' }}>
+                Prescribed by Coach {memberTrainer?.name || 'Personal Coach'} • {memberWorkout.exercises?.length || 0} Exercises
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0', fontSize: '0.88rem', lineHeight: 1.8 }}>
+                {memberWorkout.exercises?.slice(0, 4).map((ex, idx) => (
+                  <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', padding: '0.25rem 0' }}>
+                    <span>• {ex.name}</span>
+                    <strong style={{ color: 'var(--color-primary)' }}>{ex.sets} sets × {ex.reps}</strong>
+                  </li>
+                ))}
+              </ul>
+              {memberWorkout.exercises?.length > 4 && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
+                  + {memberWorkout.exercises.length - 4} more exercises in full regimen
                 </p>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('membership')}>
-                    Check Membership Status
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('trainer')}>
-                    View Assigned Trainer
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('workouts')}>
-                    Today's Workout
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('payments')}>
-                    View Invoices &amp; Receipts
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'membership' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">My Membership Plan</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Your current active plan details, validity dates, and renewal options.
-              </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Plan Type</th>
-                      <th>Start Date</th>
-                      <th>Expiry Date</th>
-                      <th>Access Tier</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {membershipLoading ? (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Loading…</td></tr>
-                    ) : !membership ? (
-                      <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                          No active membership plan found.
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr>
-                        <td>{membership.planName || membership.plan || '—'}</td>
-                        <td>{membership.startDate || '—'}</td>
-                        <td>{membership.expiryDate || membership.endDate || '—'}</td>
-                        <td>{membership.accessTier || membership.tier || '—'}</td>
-                        <td>
-                          <span className={`badge ${membership.status === 'ACTIVE' || membership.active ? 'badge-green' : 'badge-gray'}`}>
-                            {membership.status || (membership.active ? 'Active' : 'Expired')}
-                          </span>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'trainer' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">My Assigned Trainer</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Personal trainer assigned by gym administration for your coaching.
-              </p>
-              {trainerLoading ? (
-                <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
-              ) : !trainer ? (
-                <div style={{ padding: '1.5rem', backgroundColor: 'var(--color-bg)', borderRadius: '6px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
-                    No trainer currently assigned. Please contact the front desk.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ padding: '1.5rem', backgroundColor: 'var(--color-bg)', borderRadius: '6px' }}>
-                  <p><strong>Name:</strong> {trainer.name || trainer.fullName}</p>
-                  {trainer.email && <p><strong>Email:</strong> {trainer.email}</p>}
-                  {trainer.specialization && <p><strong>Specialization:</strong> {trainer.specialization}</p>}
-                </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'workouts' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">My Assigned Workouts</h2>
+              <div style={{ marginTop: '1.25rem' }}>
+                <Link to="/member/workouts" className="btn btn-primary btn-sm">
+                  View Full Workout Details →
+                </Link>
               </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Personalized routines prescribed by your gym trainer.
+            </div>
+          ) : (
+            <div style={{ padding: '1.75rem 0', textAlign: 'center' }}>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1rem' }}>
+                {memberTrainer
+                  ? `Coach ${memberTrainer.name} has not yet assigned an active workout plan to your profile.`
+                  : 'You do not have a personal trainer assigned yet. Speak with the front desk to arrange coaching.'}
               </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Day / Routine</th>
-                      <th>Target Focus</th>
-                      <th>Exercises</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workoutsLoading ? (
-                      <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Loading…</td></tr>
-                    ) : workouts.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                          No workout routines assigned yet.
-                        </td>
-                      </tr>
-                    ) : workouts.map((w) => (
-                      <tr key={w.id}>
-                        <td>{w.title || w.name || w.day}</td>
-                        <td>{w.targetMuscle || w.goal || '—'}</td>
-                        <td>{w.exercises || w.exerciseCount || '—'}</td>
-                        <td>
-                          <span className={`badge ${w.completed ? 'badge-green' : 'badge-gray'}`}>
-                            {w.completed ? 'Done' : 'Pending'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Link to="/member/workouts" className="btn btn-secondary btn-sm">
+                Check My Workouts Page
+              </Link>
             </div>
           )}
+        </div>
 
-          {activeTab === 'payments' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Payment History &amp; Receipts</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Past invoices, subscription payments, and receipt downloads in Indian Rupees (₹).
-              </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Invoice ID</th>
-                      <th>Description</th>
-                      <th>Amount (₹)</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No payment transactions found.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+        {/* Membership Validity Card */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Active Membership Overview</h3>
+            <span className={`badge ${activeMember?.status === 'Active' ? 'badge-green' : 'badge-danger'}`}>
+              {activeMember?.plan || 'Membership'}
+            </span>
+          </div>
+          <div style={{ marginBottom: '1rem' }}>
+            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Plan Tier:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.plan}</strong>
             </div>
-          )}
-        </main>
+            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Joined Date:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.joinedDate || '15 Aug 2026'}</strong>
+            </div>
+            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Valid Until:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.expiryDate || '31 Oct 2026'}</strong>
+            </div>
+            <div className="flex-between" style={{ padding: '0.4rem 0' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Personal Coach:</span>
+              <strong style={{ fontSize: '0.9rem', color: memberTrainer ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
+                {memberTrainer ? memberTrainer.name : 'None Assigned'}
+              </strong>
+            </div>
+          </div>
+          <Link to="/member/membership" className="btn btn-secondary btn-sm">
+            View Membership Benefits →
+          </Link>
+        </div>
       </div>
     </div>
   );
