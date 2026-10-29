@@ -12,6 +12,8 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.List;
+
 @Configuration
 public class SecurityConfig {
 
@@ -23,21 +25,52 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(c -> c.configurationSource(request -> {
-                var cfg = new org.springframework.web.cors.CorsConfiguration();
-                cfg.setAllowedOriginPatterns(java.util.List.of("http://localhost:*"));
-                cfg.setAllowedMethods(java.util.List.of("GET","POST","PUT","DELETE","OPTIONS"));
-                cfg.setAllowedHeaders(java.util.List.of("*"));
-                return cfg;
-            }))
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                // Disable CSRF for REST APIs
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // CORS Configuration
+                .cors(cors -> cors.configurationSource(request -> {
+                    var config = new org.springframework.web.cors.CorsConfiguration();
+
+                    config.setAllowedOriginPatterns(
+                            List.of("http://localhost:*")
+                    );
+
+                    config.setAllowedMethods(
+                            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                    );
+
+                    config.setAllowedHeaders(
+                            List.of("*")
+                    );
+
+                    return config;
+                }))
+
+                // Stateless authentication using JWT
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                // Authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/",
+                                "/error",
+                                "/favicon.ico",
+                                "/api/auth/**"
+                        ).permitAll()
+
+                        .anyRequest().authenticated()
+                )
+
+                // Add JWT filter
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
