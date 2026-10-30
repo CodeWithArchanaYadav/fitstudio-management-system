@@ -1,270 +1,125 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import './Home.css';
 
-/**
- * Home Page
- * Public landing page for FitStudio Gym & Fitness Studio.
- * Preserves the FitStudio emerald & slate theme.
- * Displays gym facilities, operating hours, and front desk contact information.
- * Offline registration is conducted in person at the gym front desk.
- */
 function Home() {
+  // Replace the sample contact details, address, and hours with verified gym information.
   const gymPhone = '+91 98765 43210';
   const gymTelHref = 'tel:+919876543210';
+  const gymEmail = 'contact@fitstudio-gym.com';
+
+  const managementFeatures = [
+    { number: '01', title: 'Member Management', description: 'Keep member profiles and membership information organized in one place.', icon: '♙' },
+    { number: '02', title: 'Trainer Management', description: 'Keep trainer details organized and coordinate fitness support.', icon: '✦' },
+    { number: '03', title: 'Membership Tracking', description: 'Review membership plans, renewals, and subscription details.', icon: '↻' },
+    { number: '04', title: 'Reports & Overview', description: 'Give authorized staff a clear overview of gym activity and records.', icon: '▤' },
+  ];
+
+  const facilities = [
+    {
+      tag: 'STRENGTH ZONE',
+      title: 'Strength & Conditioning',
+      description: 'Train with free weights, resistance equipment, and space for building strength at your own pace.',
+      image: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=1000&q=85',
+      alt: 'Strength training equipment in a gym',
+    },
+    {
+      tag: 'PERSONAL COACHING',
+      title: 'Personal Training',
+      description: 'Get guidance with exercise technique, workout planning, and progress toward your fitness goals.',
+      image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1000&q=85',
+      alt: 'Personal trainer coaching a gym member',
+    },
+    {
+      tag: 'CARDIO & ENDURANCE',
+      title: 'Cardio & Functional Fitness',
+      description: 'Build stamina and mobility with cardio machines and functional movement sessions.',
+      image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=85',
+      alt: 'Modern gym floor with cardio and strength equipment',
+    },
+  ];
 
   return (
-    <div>
+    <div className="fit-home">
       <Navbar />
-
-      {/* Hero / Introduction Section */}
-      <section style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', padding: '4.5rem 0 3.5rem 0' }}>
-        <div className="container" style={{ textAlign: 'center' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <span className="badge badge-green" style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }}>
-              Gym & Fitness Studio • Front Desk Offline Registration
-            </span>
+      <main>
+        <section className="fh-hero">
+          <div className="fh-hero-copy">
+            <span className="fh-kicker"><span className="fh-kicker-dot" /> FITNESS, MADE PERSONAL</span>
+            <h1>Make room for your <em>strongest</em> self.</h1>
+            <p className="fh-lead">Train with purpose at FitStudio. Explore our facilities, connect with our team, and take the next step toward a stronger, healthier routine.</p>
+            <div className="fh-actions">
+              <a className="fh-btn fh-btn-primary" href="#facilities">Explore facilities <span aria-hidden="true">↗</span></a>
+              <Link className="fh-btn fh-btn-secondary" to="/login">Member & staff sign in</Link>
+            </div>
+            <p className="fh-note">New here? Membership registration is completed in person at our front desk.</p>
           </div>
-
-          <h1 style={{ fontSize: '2.85rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '1.25rem', lineHeight: 1.2 }}>
-            Elevate Your Training at <span style={{ color: 'var(--color-primary)' }}>FitStudio</span>
-          </h1>
-
-          <p style={{ fontSize: '1.15rem', color: 'var(--color-text-muted)', maxWidth: '720px', margin: '0 auto 2.25rem auto', lineHeight: 1.65 }}>
-            A premier fitness and strength training facility built for dedicated athletes and everyday fitness enthusiasts.
-            Featuring Olympic lifting platforms, functional turf, certified personal coaches, and dedicated front desk operations.
-          </p>
-
-          {/* Prominent Action Buttons */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
-            <a
-              href={gymTelHref}
-              className="btn btn-primary"
-              style={{ padding: '0.8rem 2rem', fontSize: '1.02rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <span>📞</span>
-              <span>Call Now: {gymPhone}</span>
-            </a>
-            <Link
-              to="/login"
-              className="btn btn-secondary"
-              style={{ padding: '0.8rem 2rem', fontSize: '1.02rem' }}
-            >
-              Member & Staff Sign In
-            </Link>
-            <a
-              href="#contact"
-              className="btn btn-outline"
-              style={{ padding: '0.8rem 1.75rem', fontSize: '1.02rem' }}
-            >
-              Visit Front Desk
-            </a>
+          <div className="fh-hero-photo" role="img" aria-label="Modern fitness studio with strength equipment">
+            <div className="fh-photo-card"><span>YOUR SPACE TO</span><strong>MOVE BETTER.</strong><strong>FEEL STRONGER.</strong></div>
+            <span className="fh-photo-caption">FITSTUDIO · TRAINING FLOOR</span>
           </div>
+        </section>
 
-          {/* Facility Highlights Banner */}
-          <div style={{ padding: '1rem', backgroundColor: 'var(--color-bg)', borderRadius: '8px', border: '1px solid var(--color-border)', maxWidth: '820px', margin: '0 auto 3rem auto' }}>
-            <p style={{ fontSize: '0.92rem', color: 'var(--color-text-muted)', margin: 0 }}>
-              📍 <strong>Offline Registration Note:</strong> Member accounts and subscriptions are registered in-person at our front desk reception. Once registered, credentials are sent to your email to access your personal member portal.
-            </p>
+        <section className="fh-trust-row" aria-label="FitStudio highlights">
+          <div><span>01</span><strong>Member-first experience</strong></div>
+          <div><span>02</span><strong>Expert training support</strong></div>
+          <div><span>03</span><strong>Organized gym management</strong></div>
+        </section>
+
+        <section className="fh-section fh-management" id="management">
+          <div className="fh-section-head">
+            <div><span className="fh-overline">THE FITSTUDIO SYSTEM</span><h2>Your gym. <em>Well managed.</em></h2></div>
+            <p>Keep the important parts of your fitness studio organized—from member information to everyday operations.</p>
           </div>
-
-          {/* Quick Facility Pillars */}
-          <div className="grid-4" style={{ textAlign: 'left' }}>
-            <div className="card" style={{ marginBottom: 0, border: '1px solid var(--color-border)' }}>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.35rem' }}>
-                🏋️ Heavy Resistance Floor
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
-                Olympic platforms, bumper plates, power cages, and calibrated dumbbells up to 50kg.
-              </p>
-            </div>
-
-            <div className="card" style={{ marginBottom: 0, border: '1px solid var(--color-border)' }}>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.35rem' }}>
-                🏃 Functional & Cardio Turf
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
-                Curved treadmills, Concept2 rowing ergs, assault bikes, and a 25m indoor sled track.
-              </p>
-            </div>
-
-            <div className="card" style={{ marginBottom: 0, border: '1px solid var(--color-border)' }}>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.35rem' }}>
-                🎯 Certified Instructors
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
-                Expert personal trainers on the floor to design custom splits, improve biomechanics, and track goals.
-              </p>
-            </div>
-
-            <div className="card" style={{ marginBottom: 0, border: '1px solid var(--color-border)' }}>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.35rem' }}>
-                📋 Front Desk Support
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
-                Walk-in registrations, rapid check-ins, membership renewals, and billing assistance.
-              </p>
-            </div>
+          <div className="fh-feature-grid">
+            {managementFeatures.map((feature) => (
+              <article className="fh-feature-card" key={feature.number}>
+                <div className="fh-feature-top"><span>{feature.number}</span><span className="fh-feature-icon" aria-hidden="true">{feature.icon}</span></div>
+                <h3>{feature.title}</h3><p>{feature.description}</p>
+              </article>
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Gym Services & Facilities Section */}
-      <section id="services" style={{ padding: '4rem 0', backgroundColor: 'var(--color-bg)' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '2.75rem' }}>
-            <span className="badge badge-green mb-1">Facility Overview</span>
-            <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--color-text)' }}>
-              Our Gym Facilities & Training Zones
-            </h2>
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '1rem', maxWidth: '650px', margin: '0.5rem auto 0 auto' }}>
-              Engineered for athletic performance, functional movement, and sustainable wellbeing
-            </p>
+        <section className="fh-section fh-facilities" id="facilities">
+          <div className="fh-section-head">
+            <div><span className="fh-overline">FIND YOUR FOCUS</span><h2>Space to move. <em>Room to grow.</em></h2></div>
+            <p>Discover training options designed to support strength, endurance, and sustainable progress.</p>
           </div>
-
-          <div className="grid-3">
-            <div className="card">
-              <div className="badge badge-green mb-1">Strength Zone</div>
-              <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>Strength & Conditioning</h3>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.6 }}>
-                Full suite of calibrated bumper plates, power racks, kettlebells, and heavy dumbbells. Maintained daily to rigorous safety and cleanliness standards.
-              </p>
-            </div>
-
-            <div className="card">
-              <div className="badge badge-blue mb-1">Personalized Coaching</div>
-              <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>Personal Training</h3>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.6 }}>
-                One-on-one sessions with certified fitness coaches providing movement screening, posture correction, personalized routines, and progressive overload tracking.
-              </p>
-            </div>
-
-            <div className="card">
-              <div className="badge badge-green mb-1">Endurance & Agility</div>
-              <h3 className="card-title" style={{ marginBottom: '0.5rem' }}>Cardio & Functional Turf</h3>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.6 }}>
-                High-performance curved treadmills, Concept2 rowers, ski ergs, and an indoor synthetic turf strip for sled pushes, plyometrics, and agility conditioning.
-              </p>
-            </div>
+          <div className="fh-facility-grid">
+            {facilities.map((facility) => (
+              <article className="fh-facility-card" key={facility.title}>
+                <div className="fh-facility-image-wrap"><img src={facility.image} alt={facility.alt} loading="lazy" /><span className="fh-image-arrow" aria-hidden="true">↗</span></div>
+                <div className="fh-facility-body"><span className="fh-overline">{facility.tag}</span><h3>{facility.title}</h3><p>{facility.description}</p><a href="#contact" className="fh-text-link">Ask us about this <span aria-hidden="true">→</span></a></div>
+              </article>
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Operating Hours & Facility Access */}
-      <section style={{ padding: '3.5rem 0', backgroundColor: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
-        <div className="container">
-          <div className="card" style={{ maxWidth: '880px', margin: '0 auto', padding: '2.25rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-              <span className="badge badge-green mb-1">Facility Schedule</span>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text)' }}>
-                FitStudio Operating Hours & Access
-              </h3>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginTop: '0.25rem' }}>
-                Open 7 days a week with certified fitness staff and front desk reception on duty
-              </p>
-            </div>
-
-            <div className="grid-3" style={{ textAlign: 'center' }}>
-              <div style={{ padding: '1rem', borderRight: '1px solid var(--color-border)' }}>
-                <div style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: '0.25rem' }}>
-                  Monday – Friday
-                </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-                  5:30 AM – 10:30 PM
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.35rem' }}>
-                  Full Facility & Trainer Floor Duty
-                </div>
-              </div>
-
-              <div style={{ padding: '1rem', borderRight: '1px solid var(--color-border)' }}>
-                <div style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: '0.25rem' }}>
-                  Saturday
-                </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-                  6:00 AM – 9:30 PM
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.35rem' }}>
-                  Group Classes & Open Gym Floor
-                </div>
-              </div>
-
-              <div style={{ padding: '1rem' }}>
-                <div style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: '0.25rem' }}>
-                  Sunday
-                </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-                  7:00 AM – 8:00 PM
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.35rem' }}>
-                  Open Gym & Recovery Suite
-                </div>
-              </div>
-            </div>
+        <section className="fh-hours-section" id="hours">
+          <div className="fh-hours-intro"><span className="fh-overline">PLAN YOUR VISIT</span><h2>Make time for <em>yourself.</em></h2><p>Visit the front desk for membership registration, renewals, and help getting started.</p><a className="fh-btn fh-btn-primary" href={gymTelHref}>Call the front desk <span aria-hidden="true">↗</span></a></div>
+          <div className="fh-hours-card">
+            <div className="fh-hours-title"><span className="fh-overline">OPENING HOURS</span><span className="fh-hours-mark" aria-hidden="true">◷</span></div>
+            <div className="fh-hours-row"><span>Monday – Friday</span><strong>5:30 AM – 10:30 PM</strong></div>
+            <div className="fh-hours-row"><span>Saturday</span><strong>6:00 AM – 9:30 PM</strong></div>
+            <div className="fh-hours-row"><span>Sunday</span><strong>7:00 AM – 8:00 PM</strong></div>
+            <p className="fh-hours-footnote">Sample hours — please confirm with the gym before publishing.</p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Contact Section */}
-      <section id="contact" style={{ padding: '4rem 0', backgroundColor: 'var(--color-bg)' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <span className="badge badge-green mb-1">Get in Touch</span>
-            <h2 style={{ fontSize: '1.9rem', fontWeight: 700, color: 'var(--color-text)' }}>
-              Contact FitStudio Front Desk
-            </h2>
-            <p style={{ color: 'var(--color-text-muted)', marginTop: '0.5rem', fontSize: '0.98rem' }}>
-              Reach out for facility tours, member registrations, or training consultations
-            </p>
+        <section className="fh-contact fh-section" id="contact">
+          <div className="fh-contact-heading"><span className="fh-overline">LET'S GET STARTED</span><h2>Have a question? <em>Let's talk.</em></h2><p>Reach out for facility tours, member registration, or training consultations.</p></div>
+          <div className="fh-contact-grid">
+            <article className="fh-contact-card"><span className="fh-contact-icon" aria-hidden="true">⌖</span><span className="fh-overline">COME VISIT</span><h3>Our front desk</h3><p>101 Fitness Boulevard, Bandra West<br />Mumbai, Maharashtra 400050</p><span className="fh-contact-note">Replace with your actual gym address.</span></article>
+            <article className="fh-contact-card"><span className="fh-contact-icon" aria-hidden="true">↗</span><span className="fh-overline">GIVE US A CALL</span><h3>Front desk phone</h3><p><a href={gymTelHref}>{gymPhone}</a></p><span className="fh-contact-note">Confirm phone and reception hours.</span></article>
+            <article className="fh-contact-card"><span className="fh-contact-icon" aria-hidden="true">✉</span><span className="fh-overline">SEND AN EMAIL</span><h3>General enquiries</h3><p><a href={`mailto:${gymEmail}`}>{gymEmail}</a><br /><a href="mailto:support@fitstudio.com">support@fitstudio.com</a></p><span className="fh-contact-note">Replace with your real email addresses.</span></article>
           </div>
+        </section>
 
-          <div className="grid-3">
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📍</div>
-              <h4 style={{ fontWeight: 600, marginBottom: '0.35rem' }}>Facility Address</h4>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                101 Fitness Boulevard, Bandra West<br />
-                Mumbai, Maharashtra 400050
-              </p>
-            </div>
-
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📞</div>
-              <h4 style={{ fontWeight: 600, marginBottom: '0.35rem' }}>Front Desk Phone</h4>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                <a href={gymTelHref} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                  {gymPhone}
-                </a><br />
-                Mon – Sun: 6:00 AM – 10:00 PM
-              </p>
-            </div>
-
-            <div className="card" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>✉️</div>
-              <h4 style={{ fontWeight: 600, marginBottom: '0.35rem' }}>Email Inquiries</h4>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                contact@fitstudio-gym.com<br />
-                support@fitstudio.com
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={{ backgroundColor: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', padding: '2.25rem 0', textAlign: 'center' }}>
-        <div className="container">
-          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center', gap: '1.75rem', flexWrap: 'wrap', fontSize: '0.9rem' }}>
-            <Link to="/" style={{ color: 'var(--color-text-muted)' }}>Home</Link>
-            <a href="#services" style={{ color: 'var(--color-text-muted)' }}>Facilities</a>
-            <a href="#contact" style={{ color: 'var(--color-text-muted)' }}>Contact & Hours</a>
-            <Link to="/login" style={{ color: 'var(--color-text-muted)' }}>Sign In</Link>
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-            &copy; 2026 FitStudio — Gym & Fitness Studio Management System. All rights reserved. Offline registration conducted at front desk.
-          </p>
-        </div>
-      </footer>
+        <section className="fh-bottom-cta"><div><span className="fh-overline">YOUR NEXT CHAPTER STARTS HERE</span><h2>Show up for yourself.</h2><p>Visit FitStudio and take the first step toward your fitness goals.</p></div><a className="fh-btn fh-btn-dark" href={gymTelHref}>Contact FitStudio <span aria-hidden="true">↗</span></a></section>
+      </main>
+      <footer className="fh-footer"><Link to="/" className="fh-footer-brand">FIT<span>STUDIO</span></Link><p>Gym & Fitness Studio Management System</p><div className="fh-footer-links"><a href="#management">Management</a><a href="#facilities">Facilities</a><a href="#hours">Hours</a><a href="#contact">Contact</a><Link to="/login">Sign in</Link></div><small>© {new Date().getFullYear()} FitStudio. All rights reserved.</small></footer>
     </div>
   );
 }
