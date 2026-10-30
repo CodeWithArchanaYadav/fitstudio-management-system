@@ -1,28 +1,39 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 /**
  * Navbar Component
- * Simple top navigation header for FitStudio.
- * Includes logo/branding, public links, and direct link to /login.
+ * Main header navigation for FitStudio.
+ * Includes logo/branding, public links, and direct access to Login & Registration.
  */
 function Navbar() {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
   return (
     <header className="navbar">
       <div className="nav-container">
         <Link to="/" className="nav-brand">
           Fit<span>Studio</span>
         </Link>
-        <nav>
+        <nav aria-label="Main Navigation">
           <ul className="nav-links">
             <li>
               <Link to="/" className="nav-link">Home</Link>
             </li>
             <li>
-              <a href="#services" className="nav-link">Services</a>
+              {isHome ? (
+                <a href="#services" className="nav-link">Facilities</a>
+              ) : (
+                <Link to="/#services" className="nav-link">Facilities</Link>
+              )}
             </li>
             <li>
-              <a href="#contact" className="nav-link">Contact</a>
+              {isHome ? (
+                <a href="#contact" className="nav-link">Contact</a>
+              ) : (
+                <Link to="/#contact" className="nav-link">Contact</Link>
+              )}
             </li>
             <li>
               <Link to="/login" className="btn btn-primary btn-sm">

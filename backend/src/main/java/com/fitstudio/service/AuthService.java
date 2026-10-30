@@ -2,66 +2,52 @@ package com.fitstudio.service;
 
 import com.fitstudio.dto.LoginRequest;
 import com.fitstudio.dto.LoginResponse;
-import com.fitstudio.model.Admin;
-import com.fitstudio.repository.AdminRepository;
+import com.fitstudio.model.User;
+import com.fitstudio.repository.Repositories.UserRepository;
 import com.fitstudio.util.JwtUtil;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthService {
 
-    private final AdminRepository adminRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
     public AuthService(
-            AdminRepository adminRepository,
+            UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil) {
 
-        this.adminRepository = adminRepository;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
     public LoginResponse login(LoginRequest request) {
 
-        if (request == null
-                || request.getEmail() == null
-                || request.getEmail().isBlank()
-                || request.getPassword() == null
-                || request.getPassword().isBlank()) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new BadCredentialsException("Invalid credentials"));
 
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Email and password are required"
-            );
+        if (!passwordEncoder.matches(
+                request.getPassword(), user.getPassword())
+                || !"Active".equals(user.getStatus())) {
+
+            throw new BadCredentialsException("Invalid credentials");
         }
 
-        Admin admin = adminRepository
-                .findByEmail(request.getEmail().trim())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Invalid email or password"
-                ));
+        String token = jwtUtil.generateToken(
+                user.getEmail(), user.getRole().name());
 
-        if (admin.getPassword() == null
-                || !passwordEncoder.matches(
-                request.getPassword(),
-                admin.getPassword())) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Invalid email or password"
-            );
-        }
-
-        String token = jwtUtil.generateToken(admin.getEmail());
-
-        return new LoginResponse(token, admin.getEmail());
+        return new LoginResponse(
+                token,
+                user.getEmail(),
+                user.getRole().name(),
+                user.getName()
+        );
     }
 }

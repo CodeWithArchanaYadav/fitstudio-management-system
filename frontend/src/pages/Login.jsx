@@ -1,32 +1,70 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
+import { api } from '../services/api';
 
 /**
  * Login Page
- * Unified login form for all FitStudio roles (Admin, Receptionist, Trainer, Member).
- * Clean, production-ready form ready for integration with the Spring Boot authentication API.
+ * Common login form for all FitStudio roles (Admin, Receptionist, Trainer, Member).
+ * Validates inputs, handles offline development states honestly without pretending authentication exists.
+ * Preserves the FitStudio theme and direct URL access during frontend development.
  */
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errors, setErrors] = useState({});
+  const [notice, setNotice] = useState({ type: '', text: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setErrorMessage('');
+  const validate = () => {
+    const newErrors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Standard client-side form validation
     if (!email.trim()) {
-      setErrorMessage('Please enter your email address.');
-      return;
+      newErrors.email = 'Please enter your email address.';
+    } else if (!emailRegex.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address format.';
     }
+
     if (!password.trim()) {
-      setErrorMessage('Please enter your password.');
+      newErrors.password = 'Please enter your password.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setNotice({ type: '', text: '' });
+
+    if (!validate()) {
       return;
     }
 
-    // Graceful error handling when authentication service is unavailable
-    setErrorMessage('Unable to connect to authentication service. Please check your network or try again later.');
+    setIsSubmitting(true);
+
+    try {
+      const response = await api.login({ email: email.trim(), password });
+
+      if (response.success) {
+        setNotice({
+          type: 'info',
+          text: 'Authentication response received from backend.',
+        });
+      } else {
+        setNotice({
+          type: 'warning',
+          text: 'The authentication service is currently unavailable. In this frontend development stage without a Spring Boot backend, all dashboard pages are directly accessible via their URLs.',
+        });
+      }
+    } catch {
+      setNotice({
+        type: 'warning',
+        text: 'The authentication service is currently unavailable. All dashboard pages remain directly accessible via their URLs.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -41,19 +79,22 @@ function Login() {
               Fit<span style={{ color: 'var(--color-primary)' }}>Studio</span>
             </h1>
             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
-              Welcome back. Sign in to your account.
+              Sign in to your gym account
             </p>
           </div>
 
-          {/* Error Banner */}
-          {errorMessage && (
-            <div className="notice-box notice-error" style={{ marginBottom: '1.25rem' }}>
-              {errorMessage}
+          {/* Notice Banner */}
+          {notice.text && (
+            <div
+              className={`notice-box ${notice.type === 'warning' ? 'notice-warning' : 'notice-box'}`}
+              style={{ marginBottom: '1.25rem' }}
+            >
+              {notice.text}
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="login-email" className="form-label">
                 Email Address
@@ -64,8 +105,13 @@ function Login() {
                 className="form-input"
                 placeholder="name@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                }}
+                disabled={isSubmitting}
               />
+              {errors.email && <div className="form-error">{errors.email}</div>}
             </div>
 
             <div className="form-group">
@@ -78,14 +124,30 @@ function Login() {
                 className="form-input"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+                }}
+                disabled={isSubmitting}
               />
+              {errors.password && <div className="form-error">{errors.password}</div>}
             </div>
 
-            <button type="submit" className="btn btn-primary btn-full mt-2">
-              Sign In
+            <button
+              type="submit"
+              className="btn btn-primary btn-full mt-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Verifying...' : 'Sign In'}
             </button>
           </form>
+
+          {/* Offline Registration Information Footer */}
+          <div style={{ marginTop: '1.75rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.5, margin: 0 }}>
+              Member accounts are registered offline at the front desk. After registration, login credentials are sent to your registered email address.
+            </p>
+          </div>
         </div>
       </main>
     </div>

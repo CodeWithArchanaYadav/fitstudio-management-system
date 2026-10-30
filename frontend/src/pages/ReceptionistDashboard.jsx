@@ -1,263 +1,139 @@
-import React, { useState } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
 /**
  * ReceptionistDashboard Page
- * Front desk operations dashboard for FitStudio.
- * Sections:
- * 1. Overview
- * 2. Members
- * 3. Memberships
- * 4. Payments
- * 5. Trainer Information
+ * Front desk operations overview for FitStudio reception staff.
+ * Coordinates member registration, trainer assignments, attendance check-ins, renewals, and payments.
+ * Renders within the shared DashboardLayout.
  */
 function ReceptionistDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [notice, setNotice] = useState('');
-
   return (
     <div>
-      <Navbar />
+      <header className="dashboard-header">
+        <h1>Receptionist Dashboard</h1>
+        <p>Front Desk Member Management, Check-Ins, Trainer Assignments & Billing</p>
+      </header>
 
-      <div className="dashboard-layout">
-        <Sidebar
-          role="receptionist"
-          activeItem={activeTab}
-          onSelect={(tabId) => {
-            setActiveTab(tabId);
-            setNotice('');
-          }}
-        />
+      {/* Development Prototype Notice */}
+      <div className="notice-box mb-3" style={{ borderLeft: '4px solid var(--color-primary)' }}>
+        <strong>Frontend Development Stage:</strong> Front desk operational workflows are active for testing and review. Live Spring Boot database persistence and payment processing will be connected during backend integration.
+      </div>
 
-        <main className="dashboard-main">
-          <header className="dashboard-header">
-            <h1>Receptionist Dashboard</h1>
-            <p>Front Desk Member Check-Ins, Registrations & Billing</p>
-          </header>
+      {/* Front Desk Metric Cards */}
+      <div className="grid-4 mb-3">
+        <div className="stat-card">
+          <div className="stat-label">Today's Check-Ins</div>
+          <div className="stat-value">0</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Active Members</div>
+          <div className="stat-value">2</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Expiring This Week</div>
+          <div className="stat-value">1</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Available Trainers</div>
+          <div className="stat-value">2</div>
+        </div>
+      </div>
 
-          {notice && (
-            <div className="notice-box notice-warning">
-              {notice}
-            </div>
-          )}
-
-          {/* 1. Overview */}
-          {activeTab === 'overview' && (
+      {/* Quick Action Modules */}
+      <div className="card mb-3">
+        <div className="card-header">
+          <h2 className="card-title">Front Desk Operations & Workflows</h2>
+        </div>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
+          Select an operational module to perform daily front desk responsibilities:
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
+          <Link to="/receptionist/members" className="btn btn-secondary" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}>
             <div>
-              <div className="grid-4 mb-3">
-                <div className="stat-card">
-                  <div className="stat-label">Today's Check-Ins</div>
-                  <div className="stat-value">0</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Active Members</div>
-                  <div className="stat-value">0</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Expiring This Week</div>
-                  <div className="stat-value">0</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Today's Collections</div>
-                  <div className="stat-value">₹0</div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Front Desk Quick Actions</h2>
-                </div>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1rem' }}>
-                  Perform daily reception workflows using the modules below:
-                </p>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('members')}>
-                    Member Check-In & Lookup
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('memberships')}>
-                    Renew Membership
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('payments')}>
-                    Record Walk-In Payment
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('trainers')}>
-                    View Trainer Shifts
-                  </button>
-                </div>
+              <div style={{ fontWeight: 600 }}>👤 Member Management</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                Offline registrations, directory & contact updates
               </div>
             </div>
-          )}
+          </Link>
 
-          {/* 2. Members Tab */}
-          {activeTab === 'members' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Member Lookup & Check-In</h2>
-              </div>
-              <div className="form-group" style={{ maxWidth: '400px' }}>
-                <label htmlFor="member-search" className="form-label">Search Member by Name or ID</label>
-                <input
-                  id="member-search"
-                  type="text"
-                  className="form-input"
-                  placeholder="Enter name, phone, or member ID..."
-                />
-                <span className="form-help">Search member by name, phone number, or ID.</span>
-              </div>
-              <div className="table-container mt-2">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Full Name</th>
-                      <th>Plan Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No members found.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          <Link to="/receptionist/trainers" className="btn btn-secondary" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>🏋️ Trainer Management</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                Add trainers & assign members to coaches
               </div>
             </div>
-          )}
+          </Link>
 
-          {/* 3. Memberships Tab */}
-          {activeTab === 'memberships' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Membership Renewals & Subscriptions</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Assist walk-in members with purchasing or extending gym passes.
-              </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Plan</th>
-                      <th>Duration</th>
-                      <th>Fee (₹)</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Basic Gym Plan</td>
-                      <td>30 Days</td>
-                      <td>₹1,500</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setNotice('Enrollment service is currently unavailable. Please try again later.')}
-                        >
-                          Renew
-                        </button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Standard Pro Plan</td>
-                      <td>30 Days</td>
-                      <td>₹3,000</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => setNotice('Enrollment service is currently unavailable. Please try again later.')}
-                        >
-                          Renew
-                        </button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Premium Elite Plan</td>
-                      <td>30 Days</td>
-                      <td>₹5,000</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setNotice('Enrollment service is currently unavailable. Please try again later.')}
-                        >
-                          Renew
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          <Link to="/receptionist/attendance" className="btn btn-secondary" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>⏱️ Daily Attendance</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                Member lookup, barcode/ID check-in & logs
               </div>
             </div>
-          )}
+          </Link>
 
-          {/* 4. Payments Tab */}
-          {activeTab === 'payments' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Front Desk Billing & Receipts</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Issue receipts and record cash/POS/UPI payments.
-              </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Receipt #</th>
-                      <th>Member</th>
-                      <th>Amount (₹)</th>
-                      <th>Method</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No transactions recorded.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          <Link to="/receptionist/memberships" className="btn btn-secondary" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>📋 Subscriptions & Renewals</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                Enroll members using Admin-approved plans
               </div>
             </div>
-          )}
+          </Link>
 
-          {/* 5. Trainer Information Tab */}
-          {activeTab === 'trainers' && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Trainer Availability & Info</h2>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-                Check available personal trainers on the gym floor for walk-in consultations.
-              </p>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Trainer Name</th>
-                      <th>Specialization</th>
-                      <th>Floor Shift</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                        No trainer records available.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          <Link to="/receptionist/payments" className="btn btn-secondary" style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>💳 Payments & Invoicing</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                Record walk-in fees, Cash/UPI/Card receipts
               </div>
             </div>
-          )}
-        </main>
+          </Link>
+        </div>
+      </div>
+
+      {/* Front Desk Shift Information */}
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Front Desk Operations Guidelines</h2>
+          </div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.88rem', lineHeight: 1.8, color: 'var(--color-text-muted)' }}>
+            <li>• <strong>Offline Member Registration:</strong> Record member details and select an Admin plan. Login credentials and temporary password setup links are sent to the member's email.</li>
+            <li>• <strong>Trainer Assignments:</strong> Assign eligible Standard & Premium members to certified coaches based on their training goals.</li>
+            <li>• <strong>Check-In Verification:</strong> Ensure member pass is Active before logging facility entry. Prompt expired members to renew pass.</li>
+            <li>• <strong>Plan Templates:</strong> All membership prices and durations are configured exclusively by Gym Admin.</li>
+          </ul>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Today's Front Desk Activity</h2>
+          </div>
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Member / Visitor</th>
+                  <th>Activity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
+                    No front desk check-ins recorded yet today. Check-ins logged at the Attendance page will reflect here.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
