@@ -1,83 +1,100 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useGymData } from '../services/gymData';
+import { api } from '../services/api';
 
 /**
  * TrainerMembers Page
- * Displays gym members assigned to this personal trainer.
- * Reads from the shared FitStudio data layer.
+ * Shows the members assigned to the logged-in trainer (from the database) and lets the
+ * trainer schedule, complete, cancel and delete training sessions (saved in training_sessions).
  * Accessible at /trainer/members under DashboardLayout.
  */
+const OFFLINE = 'Cannot reach the backend. Make sure the Spring Boot server is running on port 6967.';
+const formatTime = (t) => (t ? String(t).replace('T', ' ').slice(0, 16) : '');
+
 function TrainerMembers() {
-  const {
-    trainers,
-    activeTrainer,
-    activeTrainerId,
-    setActiveTrainerId,
-    assignedMembers,
-  } = useGymData();
-
+  const [clients, setClients] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [notice, setNotice] = useState({ type: '', text: '' });
   const [selectedClient, setSelectedClient] = useState(null);
-  const [sessionNote, setSessionNote] = useState('');
-  const [notice, setNotice] = useState('');
+  const [form, setForm] = useState({ sessionTime: '', focus: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveNote = (e) => {
+  const loadAll = useCallback(async () => {
+    const [clientRes, sessionRes] = await Promise.all([api.getMyClients(), api.getSessions()]);
+    if (clientRes.success) setClients(clientRes.data);
+    if (sessionRes.success) setSessions(sessionRes.data);
+    const failed = !clientRes.success ? clientRes : !sessionRes.success ? sessionRes : null;
+    if (failed) {
+      setNotice({
+        type: 'error',
+        text: failed.status === 0 ? OFFLINE : failed.error || 'Could not load data. Log in as a trainer.',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const memberName = (id) => clients.find((c) => c.id === id)?.name || `Member #${id}`;
+
+  const handleSchedule = async (e) => {
     e.preventDefault();
-    if (!sessionNote.trim()) return;
-    setNotice(`Coaching notes recorded for ${selectedClient.fullName}. (Frontend preview mode).`);
-    setSessionNote('');
-    setSelectedClient(null);
+    if (!form.sessionTime) {
+      setNotice({ type: 'error', text: 'Please choose the session date and time.' });
+      return;
+    }
+    setIsSaving(true);
+    const res = await api.createSession({
+      memberId: selectedClient.id,
+      sessionTime: `${form.sessionTime}:00`,
+      focus: form.focus.trim(),
+      status: 'Scheduled',
+    });
+    setIsSaving(false);
+    if (res.success) {
+      setNotice({ type: 'success', text: `Session scheduled for ${selectedClient.name} on ${formatTime(res.data.sessionTime)}.` });
+      setForm({ sessionTime: '', focus: '' });
+      setSelectedClient(null);
+      await loadAll();
+    } else {
+      setNotice({ type: 'error', text: res.status === 0 ? OFFLINE : res.error || 'Could not schedule the session.' });
+    }
+  };
+
+  const setStatus = async (s, status) => {
+    const res = await api.updateSession(s.id, {
+      memberId: s.memberId,
+      sessionTime: s.sessionTime,
+      focus: s.focus,
+      status,
+    });
+    if (res.success) {
+      await loadAll();
+    } else {
+      setNotice({ type: 'error', text: res.error || 'Could not update the session.' });
+    }
+  };
+
+  const handleDelete = async (s) => {
+    if (!window.confirm('Delete this session?')) return;
+    const res = await api.deleteSession(s.id);
+    if (res.success) {
+      await loadAll();
+    } else {
+      setNotice({ type: 'error', text: res.error || 'Could not delete the session.' });
+    }
   };
 
   return (
     <div>
-      {/* Prototype Coach Selector Banner */}
-      <div className="card mb-3" style={{ padding: '0.75rem 1.25rem', backgroundColor: 'var(--color-surface)' }}>
-        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Active Coach Roster:
-            </span>
-            <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-              {activeTrainer ? `${activeTrainer.name} (${activeTrainer.id})` : 'Coach'}
-            </strong>
-            <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>
-              {activeTrainer?.specialization}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="switch-coach" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-              Switch Coach Preview:
-            </label>
-            <select
-              id="switch-coach"
-              className="form-select"
-              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-              value={activeTrainerId}
-              onChange={(e) => {
-                setActiveTrainerId(e.target.value);
-                setNotice('');
-                setSelectedClient(null);
-              }}
-            >
-              {trainers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.id})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
       <div className="flex-between mb-2">
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
             Assigned Coaching Clients
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem' }}>
-            Gym members assigned to you for 1-on-1 coaching, routine design, and goal progression
+            Members assigned to you by the Admin, and your training sessions
           </p>
         </div>
         <Link to="/trainer/workouts" className="btn btn-primary btn-sm">
@@ -85,26 +102,22 @@ function TrainerMembers() {
         </Link>
       </div>
 
-      {notice && (
-        <div className="notice-box notice-warning mb-3">
-          {notice}
+      {notice.text && (
+        <div
+          className={`notice-box ${notice.type === 'error' ? 'notice-error' : ''} mb-3`}
+        >
+          {notice.text}
         </div>
       )}
 
-      {/* Clients Directory Card */}
+      {/* Clients */}
       <div className="card mb-3">
         <div className="card-header">
-          <div>
-            <h2 className="card-title">Assigned Clients for Coach {activeTrainer?.name}</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
-              Showing members assigned to this coach via the shared FitStudio assignment store
-            </p>
-          </div>
+          <h2 className="card-title">My Clients</h2>
           <span className="badge badge-blue">
-            {assignedMembers.length} {assignedMembers.length === 1 ? 'Client' : 'Clients'} Assigned
+            {clients.length} {clients.length === 1 ? 'Client' : 'Clients'} Assigned
           </span>
         </div>
-
         <div className="table-container">
           <table className="table">
             <thead>
@@ -112,66 +125,51 @@ function TrainerMembers() {
                 <th>Member ID</th>
                 <th>Client Name</th>
                 <th>Contact</th>
-                <th>Plan Tier</th>
-                <th>Coaching Goal</th>
-                <th>Assigned Workout Plan</th>
-                <th>Frequency</th>
+                <th>Plan</th>
+                <th>Plan Ends</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {assignedMembers.length > 0 ? (
-                assignedMembers.map((client) => (
+              {clients.length > 0 ? (
+                clients.map((client) => (
                   <tr key={client.id}>
                     <td style={{ fontWeight: 600 }}>{client.id}</td>
-                    <td style={{ fontWeight: 500 }}>{client.fullName}</td>
+                    <td style={{ fontWeight: 500 }}>{client.name}</td>
                     <td>
                       <div>{client.phone}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{client.email}</div>
                     </td>
-                    <td>{client.plan}</td>
-                    <td style={{ fontSize: '0.88rem', color: 'var(--color-text)' }}>{client.coachingGoal}</td>
-                    <td>
-                      <span className={`badge ${client.hasWorkout ? 'badge-green' : 'badge-warning'}`}>
-                        {client.assignedRoutine}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{client.sessionsPerWeek} sessions/wk</td>
+                    <td>{client.plan || '—'}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{client.endDate || '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <Link
-                          to={`/trainer/workouts?memberId=${client.id}`}
-                          className="btn btn-primary btn-sm"
-                          style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
-                        >
-                          {client.hasWorkout ? 'Edit Workout' : 'Assign Workout'}
-                        </Link>
                         <button
                           type="button"
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-primary btn-sm"
                           style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
                           onClick={() => {
                             setSelectedClient(client);
-                            setNotice('');
+                            setNotice({ type: '', text: '' });
                           }}
                         >
-                          Log Notes
+                          Schedule Session
                         </button>
+                        <Link
+                          to={`/trainer/workouts?memberId=${client.id}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                        >
+                          Assign Workout
+                        </Link>
                       </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '3rem' }}>
-                    <div style={{ maxWidth: '480px', margin: '0 auto' }}>
-                      <p style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-text)', marginBottom: '0.5rem' }}>
-                        No members are currently assigned to Coach {activeTrainer?.name}.
-                      </p>
-                      <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                        When the Admin or Receptionist assigns a member to your coaching roster via the Receptionist/Admin portals, they will immediately appear here.
-                      </p>
-                    </div>
+                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
+                    No members are assigned to you yet. The Admin can assign members from Trainers & Staff.
                   </td>
                 </tr>
               )}
@@ -180,48 +178,109 @@ function TrainerMembers() {
         </div>
       </div>
 
-      {/* Client Coaching Note Modal / Box */}
+      {/* Schedule session form */}
       {selectedClient && (
-        <div className="card" style={{ border: '1px solid var(--color-primary)' }}>
+        <div className="card mb-3" style={{ border: '1px solid var(--color-primary)' }}>
           <div className="card-header">
-            <h2 className="card-title">
-              Log Session Notes for {selectedClient.fullName} ({selectedClient.id})
-            </h2>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => setSelectedClient(null)}
-            >
+            <h2 className="card-title">Schedule Session for {selectedClient.name}</h2>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedClient(null)}>
               Cancel
             </button>
           </div>
-          <form onSubmit={handleSaveNote}>
-            <div className="form-group">
-              <label className="form-label">Coaching Progress, Weights & Reps Completed</label>
-              <textarea
-                className="form-textarea"
-                rows="3"
-                placeholder="e.g. Member demonstrated excellent barbell bench press form (4x10 @ 75kg). Progressing to 80kg next week."
-                value={sessionNote}
-                onChange={(e) => setSessionNote(e.target.value)}
-                required
-              />
+          <form onSubmit={handleSchedule}>
+            <div className="grid-2">
+              <div className="form-group">
+                <label htmlFor="session-time" className="form-label">Date & Time *</label>
+                <input
+                  id="session-time"
+                  type="datetime-local"
+                  className="form-input"
+                  value={form.sessionTime}
+                  onChange={(e) => setForm({ ...form, sessionTime: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="session-focus" className="form-label">Focus / Notes</label>
+                <input
+                  id="session-focus"
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Chest and triceps, 4 sets"
+                  value={form.focus}
+                  onChange={(e) => setForm({ ...form, focus: e.target.value })}
+                />
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button type="submit" className="btn btn-primary btn-sm">
-                Save Coaching Log
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setSelectedClient(null)}
-              >
-                Cancel
-              </button>
-            </div>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Session'}
+            </button>
           </form>
         </div>
       )}
+
+      {/* Sessions */}
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">My Training Sessions</h2>
+        </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Member</th>
+                <th>Focus</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.length > 0 ? (
+                sessions.map((s) => (
+                  <tr key={s.id}>
+                    <td style={{ fontWeight: 500 }}>{formatTime(s.sessionTime)}</td>
+                    <td>{memberName(s.memberId)}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{s.focus || '—'}</td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          s.status === 'Completed' ? 'badge-green' : s.status === 'Cancelled' ? 'badge-gray' : 'badge-blue'
+                        }`}
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {s.status === 'Scheduled' && (
+                          <>
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(s, 'Completed')}>
+                              Complete
+                            </button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStatus(s, 'Cancelled')}>
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDelete(s)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                    No sessions scheduled yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

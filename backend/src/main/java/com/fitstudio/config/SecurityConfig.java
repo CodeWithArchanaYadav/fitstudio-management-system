@@ -81,8 +81,20 @@ public class SecurityConfig {
         return new InMemoryUserDetailsManager();
     }
 
+    // DEV ONLY: passwords are stored and compared as plain text (no hashing).
+    // For real use / submission switch back to: return new BCryptPasswordEncoder();
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new PasswordEncoder() {
+            @Override
+            public String encode(CharSequence rawPassword) {
+                return rawPassword.toString();
+            }
+
+            @Override
+            public boolean matches(CharSequence rawPassword, String storedPassword) {
+                return storedPassword != null && storedPassword.equals(rawPassword.toString());
+            }
+        };
     }
 }

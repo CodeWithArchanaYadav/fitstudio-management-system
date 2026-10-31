@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { getStoredPlans } from '../services/plansData';
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
 
 /**
  * ReceptionistMemberships Page
@@ -9,7 +9,14 @@ import { getStoredPlans } from '../services/plansData';
  * Accessible at /receptionist/memberships under DashboardLayout.
  */
 function ReceptionistMemberships() {
-  const [plans] = useState(() => getStoredPlans().filter((p) => p.status === 'Active'));
+  const [plans, setPlans] = useState([]);
+
+  // Active plans come from the backend (database)
+  useEffect(() => {
+    api.getPlans().then((res) => {
+      if (res.success) setPlans(res.data.filter((p) => p.status === 'Active'));
+    });
+  }, []);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
