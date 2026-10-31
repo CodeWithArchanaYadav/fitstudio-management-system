@@ -1,13 +1,12 @@
 package com.fitstudio.util;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
@@ -20,7 +19,12 @@ public class JwtUtil {
     private long expiration;
 
     private SecretKey key() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String generateToken(String email) {
+        return generateToken(email, "ADMIN");
     }
 
     public String generateToken(String email, String role) {
@@ -33,17 +37,28 @@ public class JwtUtil {
                 .compact();
     }
 
-    private Claims claims(String token) {
-        return Jwts.parser().verifyWith(key()).build().parseSignedClaims(token).getPayload();
+    public String extractEmail(String token) {
+        return Jwts.parser()
+                .verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
     }
 
-    public String extractEmail(String token) { return claims(token).getSubject(); }
-
-    public String extractRole(String token) { return claims(token).get("role", String.class); }
+    public String extractRole(String token) {
+        return Jwts.parser()
+                .verifyWith(key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
+    }
 
     public boolean isValid(String token) {
         try {
-            return claims(token).get("role", String.class) != null;
+            extractEmail(token);
+            return true;
         } catch (Exception e) {
             return false;
         }
