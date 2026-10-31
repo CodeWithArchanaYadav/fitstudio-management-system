@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../services/api';
 
 /**
  * AdminDashboard Page
@@ -8,6 +9,27 @@ import { Link } from 'react-router-dom';
  */
 function AdminDashboard() {
   const [notice, setNotice] = useState('');
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    activeTrainers: 0,
+    plansCount: 0,
+    monthlyRevenue: 0,
+  });
+
+  // Load live numbers from the backend and refresh every 10 seconds
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const res = await api.getDashboardStats();
+      if (!cancelled && res.success && res.data) setStats((prev) => ({ ...prev, ...res.data }));
+    };
+    load();
+    const timer = setInterval(load, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div>
@@ -26,19 +48,19 @@ function AdminDashboard() {
       <div className="grid-4 mb-3">
         <div className="stat-card">
           <div className="stat-label">Registered Members</div>
-          <div className="stat-value">0</div>
+          <div className="stat-value">{stats.totalMembers}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Active Trainers</div>
-          <div className="stat-value">0</div>
+          <div className="stat-value">{stats.activeTrainers}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Membership Plans</div>
-          <div className="stat-value">3</div>
+          <div className="stat-value">{stats.plansCount}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Monthly Collections</div>
-          <div className="stat-value">₹0</div>
+          <div className="stat-value">₹{stats.monthlyRevenue}</div>
         </div>
       </div>
 
