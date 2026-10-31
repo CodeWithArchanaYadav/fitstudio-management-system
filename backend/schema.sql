@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     id       BIGINT AUTO_INCREMENT PRIMARY KEY,
     name     VARCHAR(255) NOT NULL,
     email    VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,              -- BCrypt hash
+    password VARCHAR(255) NOT NULL,              -- plain text (dev mode)
     phone    VARCHAR(15),
     role     VARCHAR(20)  NOT NULL,              -- ADMIN | RECEPTIONIST | TRAINER | MEMBER
     status   VARCHAR(20)  NOT NULL DEFAULT 'Active'
@@ -91,4 +91,4 @@ INSERT INTO membership_plans (name, duration_days, fee, features, status) VALUES
 
 -- First admin  -> login: admin@fitstudio.com / Admin@123   (change the password after first login!)
 INSERT INTO users (name, email, password, phone, role, status) VALUES
-('Admin', 'admin@fitstudio.com', '$2a$10$tkmn2M.awXeffT1JJ9JhguHCVB7ESd16hCv/xZChtMOXHqFiK8hrC', NULL, 'ADMIN', 'Active');
+('Admin', 'admin@fitstudio.com', 'Admin@123', NULL, 'ADMIN', 'Active');

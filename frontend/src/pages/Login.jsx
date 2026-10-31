@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { api } from '../services/api';
+import { api, ROLE_HOME } from '../services/api';
 
 /**
  * Login Page
@@ -9,6 +10,7 @@ import { api } from '../services/api';
  * Preserves the FitStudio theme and direct URL access during frontend development.
  */
 function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -47,20 +49,21 @@ function Login() {
       const response = await api.login({ email: email.trim(), password });
 
       if (response.success) {
-        setNotice({
-          type: 'info',
-          text: 'Authentication response received from backend.',
-        });
-      } else {
-        setNotice({
-          type: 'warning',
-          text: 'The authentication service is currently unavailable. In this frontend development stage without a Spring Boot backend, all dashboard pages are directly accessible via their URLs.',
-        });
+        // Token is already saved by api.login(); go to the dashboard for this role
+        navigate(ROLE_HOME[response.data.role] || '/', { replace: true });
+        return;
       }
+
+      setNotice({
+        type: 'warning',
+        text: response.status === 0
+          ? 'Cannot reach the backend. Make sure the Spring Boot server is running on port 6967.'
+          : response.error || 'Login failed. Please check your email and password.',
+      });
     } catch {
       setNotice({
         type: 'warning',
-        text: 'The authentication service is currently unavailable. All dashboard pages remain directly accessible via their URLs.',
+        text: 'Something went wrong while signing in. Please try again.',
       });
     } finally {
       setIsSubmitting(false);
