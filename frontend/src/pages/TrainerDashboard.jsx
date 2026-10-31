@@ -10,10 +10,7 @@ import { useGymData } from '../services/gymData';
  */
 function TrainerDashboard() {
   const {
-    trainers,
     activeTrainer,
-    activeTrainerId,
-    setActiveTrainerId,
     assignedMembers,
     trainerWorkouts,
   } = useGymData();
@@ -35,24 +32,7 @@ function TrainerDashboard() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="switch-coach-dash" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-              Switch Coach Preview:
-            </label>
-            <select
-              id="switch-coach-dash"
-              className="form-select"
-              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-              value={activeTrainerId}
-              onChange={(e) => setActiveTrainerId(e.target.value)}
-            >
-              {trainers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.id})
-                </option>
-              ))}
-            </select>
-          </div>
+
         </div>
       </div>
 
