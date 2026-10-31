@@ -20,6 +20,7 @@ function AdminMembers() {
     email: '',
     phone: '',
     plan: 'Standard Pro Plan',
+    password: '',
   });
   const [formErrors, setFormErrors] = useState({});
   const [statusNotice, setStatusNotice] = useState({ type: '', text: '' });
@@ -34,7 +35,7 @@ function AdminMembers() {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      errs.email = 'Email address is required for credential delivery.';
+      errs.email = 'Email address is required.';
     } else if (!emailRegex.test(formData.email.trim())) {
       errs.email = 'Enter a valid email address.';
     }
@@ -43,6 +44,11 @@ function AdminMembers() {
       errs.phone = 'Phone number is required.';
     } else if (phoneDigits.length < 10) {
       errs.phone = 'Enter a valid 10-digit phone number.';
+    }
+    if (!formData.password) {
+      errs.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
     }
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -81,7 +87,7 @@ function AdminMembers() {
       type: 'success',
       text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member record is now active and ready for personal trainer assignment.`,
     });
-    setFormData({ fullName: '', email: '', phone: '', plan: activePlans[0]?.name || 'Standard Pro Plan' });
+    setFormData({ fullName: '', email: '', phone: '', plan: activePlans[0]?.name || 'Standard Pro Plan', password: '' });
     setShowAddForm(false);
     setIsSubmitting(false);
   };
@@ -213,6 +219,26 @@ function AdminMembers() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="admin-member-password" className="form-label">
+                Password * (min 6 characters)
+              </label>
+              <input
+                id="admin-member-password"
+                type="password"
+                className="form-input"
+                placeholder="Set account password"
+                value={formData.password}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (formErrors.password) setFormErrors({ ...formErrors, password: '' });
+                }}
+                disabled={isSubmitting}
+                autoComplete="new-password"
+              />
+              {formErrors.password && <div className="form-error">{formErrors.password}</div>}
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>

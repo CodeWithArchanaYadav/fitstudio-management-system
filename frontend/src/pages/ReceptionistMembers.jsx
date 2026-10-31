@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { api } from '../services/api';
 import { getStoredPlans } from '../services/plansData';
 import { useGymData, gymStore } from '../services/gymData';
 
@@ -7,18 +8,6 @@ import { useGymData, gymStore } from '../services/gymData';
  * Front Desk member lookup, offline registration, details viewing, and contact updates.
  * Accessible at /receptionist/members under DashboardLayout.
  */
-function generateNewMemberId() {
-  return `MEM-${Math.floor(1004 + Math.random() * 900)}`;
-}
-
-function getTodayFormattedDate() {
-  return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function getExpiryFormattedDate() {
-  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 function ReceptionistMembers() {
   const { members, addMember, updateMember } = useGymData();
 
@@ -32,24 +21,25 @@ function ReceptionistMembers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Admin-configured active plans for registration
-  const availablePlans = getStoredPlans().filter((p) => p.status === 'Active');
+  const activePlans = getStoredPlans().filter((p) => p.status === 'Active');
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    planId: availablePlans[0]?.id || 'plan-standard',
-    emergencyContact: '',
-    address: '',
+    plan: activePlans[0]?.name || 'Standard Pro Plan',
+    password: '',
   });
-  const [errors, setErrors] = useState({});
+  const [formErrors, setFormErrors] = useState({});
 
   const validate = () => {
     const errs = {};
-    if (!formData.fullName.trim()) errs.fullName = 'Full name is required.';
+    if (!formData.fullName.trim()) {
+      errs.fullName = 'Full name is required.';
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      errs.email = 'Email address is required for credential delivery.';
+      errs.email = 'Email address is required.';
     } else if (!emailRegex.test(formData.email.trim())) {
       errs.email = 'Enter a valid email address.';
     }
@@ -59,53 +49,62 @@ function ReceptionistMembers() {
     } else if (phoneDigits.length < 10) {
       errs.phone = 'Enter a valid 10-digit phone number.';
     }
-    setErrors(errs);
+    if (!formData.password) {
+      errs.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
+    }
+    setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleRegisterOfflineMember = (e) => {
+  const handleRegisterOfflineMember = async (e) => {
     e.preventDefault();
+    setNotice({ type: '', text: '' });
+
     if (!validate()) return;
 
     setIsSubmitting(true);
-    setNotice({ type: '', text: '' });
 
-    const selectedPlanObj = availablePlans.find((p) => p.id === formData.planId) || availablePlans[0];
-    const newMemberId = generateNewMemberId();
+    const selectedPlanObj = activePlans.find((p) => p.name === formData.plan) || activePlans[0];
+    const newMemberId = `MEM-${Math.floor(1004 + Math.random() * 800)}`;
 
     const newMember = {
       id: newMemberId,
       fullName: formData.fullName.trim(),
       email: formData.email.trim(),
       phone: formData.phone.trim(),
-      emergencyContact: formData.emergencyContact.trim() || 'Not provided',
-      address: formData.address.trim() || 'Not provided',
-      plan: selectedPlanObj?.name || 'Standard Pro Plan',
+      plan: formData.plan,
       planFee: selectedPlanObj?.fee || 3000,
       status: 'Active',
-      joinedDate: getTodayFormattedDate(),
-      expiryDate: getExpiryFormattedDate(),
+      joinedDate: new Date().toISOString().split('T')[0],
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       totalCheckIns: 0,
       lastCheckIn: 'Never',
     };
 
     addMember(newMember);
-    setShowAddForm(false);
-    setIsSubmitting(false);
+
+    try {
+      await api.createMember(formData);
+    } catch {
+      // In offline/frontend preview mode, fallback safely
+    }
 
     setNotice({
       type: 'info',
-      text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member profile is active and can now be assigned to a personal trainer.`,
+      text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member record is now active and ready for personal trainer assignment.`,
     });
 
     setFormData({
       fullName: '',
       email: '',
       phone: '',
-      planId: availablePlans[0]?.id || 'plan-standard',
-      emergencyContact: '',
-      address: '',
+      plan: activePlans[0]?.name || 'Standard Pro Plan',
+      password: '',
     });
+    setShowAddForm(false);
+    setIsSubmitting(false);
   };
 
   const handleOpenEdit = (member) => {
@@ -180,119 +179,113 @@ function ReceptionistMembers() {
       {showAddForm && (
         <div className="card mb-3" style={{ border: '1px solid var(--color-primary)' }}>
           <div className="card-header">
-            <div>
-              <h2 className="card-title">Offline Member Registration (Front Desk)</h2>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                Enter the member's details to create their gym profile and initiate account credentials
-              </p>
-            </div>
-            <span className="badge badge-green">In-Person Registration</span>
-          </div>
-
-          <div style={{ backgroundColor: 'var(--color-bg)', padding: '0.85rem 1rem', borderRadius: '6px', marginBottom: '1.25rem', border: '1px solid var(--color-border)' }}>
-            <p style={{ fontSize: '0.86rem', color: 'var(--color-text-muted)', margin: 0 }}>
-              ✉️ <strong>Credential Delivery Workflow:</strong> The member receives their account username and a temporary password / secure setup link at their registered email. They will use this to sign in via the common Login page.
-            </p>
+            <h2 className="card-title">Register New Member (Front Desk)</h2>
           </div>
 
           <form onSubmit={handleRegisterOfflineMember} noValidate>
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">Full Name *</label>
+                <label htmlFor="receptionist-member-name" className="form-label">
+                  Full Name *
+                </label>
                 <input
+                  id="receptionist-member-name"
                   type="text"
                   className="form-input"
                   placeholder="e.g. Sameer Kulkarni"
                   value={formData.fullName}
                   onChange={(e) => {
                     setFormData({ ...formData, fullName: e.target.value });
-                    if (errors.fullName) setErrors({ ...errors, fullName: '' });
+                    if (formErrors.fullName) setFormErrors({ ...formErrors, fullName: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.fullName && <div className="form-error">{errors.fullName}</div>}
+                {formErrors.fullName && <div className="form-error">{formErrors.fullName}</div>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Email Address (for login credentials) *</label>
+                <label htmlFor="receptionist-member-email" className="form-label">
+                  Email Address *
+                </label>
                 <input
+                  id="receptionist-member-email"
                   type="email"
                   className="form-input"
                   placeholder="sameer.k@example.com"
                   value={formData.email}
                   onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value });
-                    if (errors.email) setErrors({ ...errors, email: '' });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.email && <div className="form-error">{errors.email}</div>}
+                {formErrors.email && <div className="form-error">{formErrors.email}</div>}
               </div>
             </div>
 
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">Phone Number *</label>
+                <label htmlFor="receptionist-member-phone" className="form-label">
+                  Phone Number *
+                </label>
                 <input
+                  id="receptionist-member-phone"
                   type="tel"
                   className="form-input"
                   placeholder="+91 98765 43210"
                   value={formData.phone}
                   onChange={(e) => {
                     setFormData({ ...formData, phone: e.target.value });
-                    if (errors.phone) setErrors({ ...errors, phone: '' });
+                    if (formErrors.phone) setFormErrors({ ...formErrors, phone: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.phone && <div className="form-error">{errors.phone}</div>}
+                {formErrors.phone && <div className="form-error">{formErrors.phone}</div>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Membership Plan (Configured by Admin) *</label>
+                <label htmlFor="receptionist-member-plan" className="form-label">
+                  Membership Tier *
+                </label>
                 <select
+                  id="receptionist-member-plan"
                   className="form-select"
-                  value={formData.planId}
-                  onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
+                  value={formData.plan}
+                  onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                   disabled={isSubmitting}
                 >
-                  {availablePlans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — ₹{p.fee.toLocaleString('en-IN')} ({p.duration})
+                  {activePlans.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} (₹{p.fee.toLocaleString('en-IN')}/{p.duration})
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Emergency Contact (Optional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. +91 98765 43299 (Spouse)"
-                  value={formData.emergencyContact}
-                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Residential Address (Optional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Bandra West, Mumbai"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  disabled={isSubmitting}
-                />
-              </div>
+            <div className="form-group">
+              <label htmlFor="receptionist-member-password" className="form-label">
+                Password * (min 6 characters)
+              </label>
+              <input
+                id="receptionist-member-password"
+                type="password"
+                className="form-input"
+                placeholder="Set account password"
+                value={formData.password}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (formErrors.password) setFormErrors({ ...formErrors, password: '' });
+                }}
+                disabled={isSubmitting}
+                autoComplete="new-password"
+              />
+              {formErrors.password && <div className="form-error">{formErrors.password}</div>}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Registering...' : 'Complete Walk-In Registration'}
+                {isSubmitting ? 'Registering...' : 'Submit Registration'}
               </button>
               <button
                 type="button"

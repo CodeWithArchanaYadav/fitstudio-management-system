@@ -13,10 +13,7 @@ function TrainerWorkouts() {
   const preselectedMemberId = searchParams.get('memberId');
 
   const {
-    trainers,
     activeTrainer,
-    activeTrainerId,
-    setActiveTrainerId,
     assignedMembers,
     trainerWorkouts,
     saveWorkoutPlan,
@@ -250,29 +247,7 @@ function TrainerWorkouts() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="switch-coach-workout" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-              Switch Coach Preview:
-            </label>
-            <select
-              id="switch-coach-workout"
-              className="form-select"
-              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-              value={activeTrainerId}
-              onChange={(e) => {
-                setActiveTrainerId(e.target.value);
-                setNotice({ type: '', text: '' });
-                setShowForm(false);
-                resetForm();
-              }}
-            >
-              {trainers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.id})
-                </option>
-              ))}
-            </select>
-          </div>
+
         </div>
       </div>
 

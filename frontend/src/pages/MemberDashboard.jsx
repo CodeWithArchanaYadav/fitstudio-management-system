@@ -11,17 +11,14 @@ import { useGymData } from '../services/gymData';
  */
 function MemberDashboard() {
   const {
-    members,
     activeMember,
-    activeMemberId,
-    setActiveMemberId,
     memberTrainer,
     memberWorkout,
   } = useGymData();
 
   return (
     <div>
-      {/* Prototype Member Selector Banner */}
+      {/* Active Member Overview Banner */}
       <div className="card mb-3" style={{ padding: '0.75rem 1.25rem', backgroundColor: 'var(--color-surface)' }}>
         <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
@@ -34,25 +31,6 @@ function MemberDashboard() {
             <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
               {activeMember?.plan}
             </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="switch-member-dash" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-              Switch Member Preview:
-            </label>
-            <select
-              id="switch-member-dash"
-              className="form-select"
-              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-              value={activeMemberId}
-              onChange={(e) => setActiveMemberId(e.target.value)}
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.fullName} ({m.id})
-                </option>
-              ))}
-            </select>
           </div>
         </div>
       </div>
