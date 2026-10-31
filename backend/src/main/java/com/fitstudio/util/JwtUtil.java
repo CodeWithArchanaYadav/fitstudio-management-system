@@ -19,7 +19,7 @@ public class JwtUtil {
     private long expiration;
 
     private SecretKey key() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        byte[] keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
