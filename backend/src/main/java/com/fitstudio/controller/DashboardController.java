@@ -25,9 +25,12 @@ public class DashboardController {
     private final MembershipPlanRepository plans;
     private final TrainingSessionRepository sessions;
     private final CheckinRepository checkins;
+    private final WorkoutRoutineRepository routines;
 
     public DashboardController(UserRepository users, MemberRepository members, MembershipPlanRepository plans,
-                               TrainingSessionRepository sessions, CheckinRepository checkins) {
+                               TrainingSessionRepository sessions, CheckinRepository checkins,
+                               WorkoutRoutineRepository routines) {
+        this.routines = routines;
         this.users = users;
         this.members = members;
         this.plans = plans;
@@ -61,6 +64,9 @@ public class DashboardController {
             }
             case TRAINER -> {
                 s.put("assignedClients", members.countByTrainerId(u.getId()));
+                s.put("activeRoutines", routines.countByTrainerId(u.getId()));
+                s.put("specialization", u.getSpecialization());
+                s.put("shift", u.getShift());
                 s.put("todaySessions", sessions.countByTrainerIdAndSessionTimeBetween(
                         u.getId(), today.atStartOfDay(), today.plusDays(1).atStartOfDay()));
             }

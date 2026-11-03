@@ -210,9 +210,20 @@ export const api = {
 
   // ----- Trainer (TRAINER) -------------------------------------------------
   getMyClients: () => request('/trainer/me/members'),
+  getTrainerProfile: () => request('/trainer/me/profile'),
+  /** Profile + counts + client roster in one call (Trainer Dashboard). */
+  getTrainerDashboard: () => request('/trainer/me/dashboard'),
+  /** Roster with coachingGoal, sessionsPerWeek, hasWorkout, assignedRoutine. */
+  getClientRoster: () => request('/trainer/me/clients'),
+  getClientDetail: (memberId) => request(`/trainer/me/members/${memberId}`),
+  getClientWorkouts: (memberId) => request(`/trainer/me/members/${memberId}/workouts`),
+  /** { coachingGoal, sessionsPerWeek } */
+  updateCoaching: (memberId, data) => request(`/trainer/me/members/${memberId}/coaching`, json('PUT', data)),
 
   getWorkouts: () => request('/workouts'),
-  createWorkout: (w) => request('/workouts', json('POST', w)),
+  getWorkout: (id) => request(`/workouts/${id}`),
+  /** memberId (optional) assigns the new routine to that client immediately. */
+  createWorkout: (w, memberId) => request(`/workouts${memberId ? `?memberId=${memberId}` : ''}`, json('POST', w)),
   updateWorkout: (id, w) => request(`/workouts/${id}`, json('PUT', w)),
   deleteWorkout: (id) => request(`/workouts/${id}`, { method: 'DELETE' }),
   assignWorkout: (workoutId, memberId) => request(`/workouts/${workoutId}/assign/${memberId}`, { method: 'POST' }),
@@ -223,6 +234,8 @@ export const api = {
   createSession: (s) => request('/sessions', json('POST', s)),
   updateSession: (id, s) => request(`/sessions/${id}`, json('PUT', s)),
   deleteSession: (id) => request(`/sessions/${id}`, { method: 'DELETE' }),
+  /** status = 'Scheduled' | 'Completed' | 'Cancelled' */
+  setSessionStatus: (id, status) => request(`/sessions/${id}/status/${status}`, { method: 'PUT' }),
 
   // ----- Member portal (MEMBER) -------------------------------------------
   getMyMembership: () => request('/me/membership'),

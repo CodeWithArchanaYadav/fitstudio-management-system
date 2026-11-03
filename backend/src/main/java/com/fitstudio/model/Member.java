@@ -35,6 +35,11 @@ public class Member {
     private Long userId;      // login account (users.id, role MEMBER)
     private Long trainerId;   // assigned trainer (users.id, role TRAINER)
 
+    /** Set by the assigned trainer. */
+    @Column(length = 255)
+    private String coachingGoal;
+    private Integer sessionsPerWeek;
+
     private LocalDate joinDate;
     private LocalDate startDate;
     private LocalDate endDate;   // startDate + plan.durationDays

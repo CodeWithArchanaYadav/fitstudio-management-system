@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getStoredPlans } from '../services/plansData';
-import { useGymData, gymStore } from '../services/gymData';
 
 /**
  * ReceptionistMembers Page
@@ -9,7 +8,10 @@ import { useGymData, gymStore } from '../services/gymData';
  * Accessible at /receptionist/members under DashboardLayout.
  */
 function ReceptionistMembers() {
-  const { members, addMember, updateMember } = useGymData();
+  // Members + trainers come from the backend (real DB ids), not from localStorage.
+  const [members, setMembers] = useState([]);
+  const [trainers, setTrainers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -19,6 +21,24 @@ function ReceptionistMembers() {
   const [editFormData, setEditFormData] = useState({ phone: '', emergencyContact: '', address: '' });
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadMembers = useCallback(async () => {
+    const [mRes, tRes] = await Promise.all([api.getMembers(), api.getTrainers()]);
+    if (mRes.success) {
+      setMembers(Array.isArray(mRes.data) ? mRes.data : []);
+    } else {
+      setNotice({ type: 'error', text: mRes.error || 'Could not load members from the server.' });
+    }
+    if (tRes.success && Array.isArray(tRes.data)) setTrainers(tRes.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+
+  const trainerName = (member) =>
+    trainers.find((t) => t.id === member.trainerId)?.name || 'Unassigned';
 
   // Admin-configured active plans for registration
   const activePlans = getStoredPlans().filter((p) => p.status === 'Active');
@@ -66,34 +86,17 @@ function ReceptionistMembers() {
 
     setIsSubmitting(true);
 
-    const selectedPlanObj = activePlans.find((p) => p.name === formData.plan) || activePlans[0];
-    const newMemberId = `MEM-${Math.floor(1004 + Math.random() * 800)}`;
-
-    const newMember = {
-      id: newMemberId,
-      fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      plan: formData.plan,
-      planFee: selectedPlanObj?.fee || 3000,
-      status: 'Active',
-      joinedDate: new Date().toISOString().split('T')[0],
-      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      totalCheckIns: 0,
-      lastCheckIn: 'Never',
-    };
-
-    addMember(newMember);
-
-    try {
-      await api.createMember(formData);
-    } catch {
-      // In offline/frontend preview mode, fallback safely
+    const res = await api.createMember(formData);
+    if (!res.success) {
+      setNotice({ type: 'error', text: res.error || 'Could not register the member.' });
+      setIsSubmitting(false);
+      return;
     }
 
+    await loadMembers();
     setNotice({
       type: 'info',
-      text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member record is now active and ready for personal trainer assignment.`,
+      text: `Registered ${res.data.fullName} with member ID ${res.data.id}. Member record is now active and ready for personal trainer assignment.`,
     });
 
     setFormData({
@@ -116,30 +119,38 @@ function ReceptionistMembers() {
     });
   };
 
-  const handleSaveContactUpdate = (e) => {
+  const handleSaveContactUpdate = async (e) => {
     e.preventDefault();
     if (!editFormData.phone.trim()) return;
 
-    updateMember(editingMember.id, {
+    const res = await api.updateMember(editingMember.id, {
+      ...editingMember,
       phone: editFormData.phone.trim(),
-      emergencyContact: editFormData.emergencyContact.trim(),
-      address: editFormData.address.trim(),
     });
+    if (!res.success) {
+      setNotice({ type: 'error', text: res.error || 'Could not update contact information.' });
+      setEditingMember(null);
+      return;
+    }
 
+    await loadMembers();
     setNotice({
       type: 'info',
-      text: `Contact information updated for ${editingMember.fullName} (${editingMember.id}).`,
+      text: `Contact information updated for ${editingMember.fullName} (ID ${editingMember.id}).`,
     });
     setEditingMember(null);
   };
 
   const filteredMembers = members.filter((m) => {
+    const q = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.phone.includes(searchQuery) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      String(m.id).toLowerCase().includes(q) ||
+      (m.fullName || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q) ||
+      String(m.phone || '').includes(q);
     const matchesStatus =
-      statusFilter === 'ALL' || m.status.toUpperCase() === statusFilter.toUpperCase();
+      statusFilter === 'ALL' || (m.status || '').toUpperCase() === statusFilter.toUpperCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -348,9 +359,7 @@ function ReceptionistMembers() {
             <tbody>
               {filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => {
-                  const assignedCoach = gymStore.getTrainerForMember(member.id);
-                  const coachName = assignedCoach ? assignedCoach.name : 'Unassigned';
-                  const checkInsCount = member.totalCheckIns ?? (member.status === 'Active' ? 18 : 0);
+                  const coachName = trainerName(member);
 
                   return (
                     <tr key={member.id}>
@@ -371,7 +380,7 @@ function ReceptionistMembers() {
                           {member.status}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{checkInsCount}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{member.totalCheckIns ?? '-'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
                           <button
@@ -396,7 +405,7 @@ function ReceptionistMembers() {
               ) : (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No members found matching "{searchQuery}".
+                    {loading ? 'Loading members...' : `No members found matching "${searchQuery}".`}
                   </td>
                 </tr>
               )}
@@ -440,7 +449,7 @@ function ReceptionistMembers() {
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Assigned Coach</span>
-                <strong>{gymStore.getTrainerForMember(selectedMember.id)?.name || 'Unassigned'}</strong>
+                <strong>{trainerName(selectedMember)}</strong>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Joined Date</span>
@@ -448,26 +457,26 @@ function ReceptionistMembers() {
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Pass Expiry Date</span>
-                <span>{selectedMember.expiryDate}</span>
+                <span>{selectedMember.expiryDate || '-'}</span>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Last Recorded Check-In</span>
-                <span>{selectedMember.lastCheckIn}</span>
+                <span>{selectedMember.lastCheckIn || '-'}</span>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Total Lifetime Visits</span>
-                <strong>{selectedMember.totalCheckIns} Visits</strong>
+                <strong>{selectedMember.totalCheckIns ?? '-'} Visits</strong>
               </div>
             </div>
 
             <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Residential Address</span>
-              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.address}</p>
+              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.address || '-'}</p>
             </div>
 
             <div style={{ marginTop: '0.75rem' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Emergency Contact</span>
-              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.emergencyContact}</p>
+              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.emergencyContact || '-'}</p>
             </div>
 
             <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>

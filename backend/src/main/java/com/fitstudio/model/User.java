@@ -39,4 +39,12 @@ public class User {
 
     @Column(nullable = false, length = 20)
     private String status = "Active";
+
+    /** Trainer only (e.g. "Strength & Conditioning"). */
+    @Column(length = 100)
+    private String specialization;
+
+    /** Trainer only (e.g. "Morning & Evening"). */
+    @Column(length = 50)
+    private String shift;
 }

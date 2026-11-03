@@ -6,6 +6,9 @@
 --   ALTER TABLE members MODIFY plan VARCHAR(50) NULL;
 --   DROP TABLE IF EXISTS admin;       -- replaced by users
 --   DROP TABLE IF EXISTS attendance;  -- replaced by checkins
+--   ALTER TABLE users   ADD COLUMN specialization VARCHAR(100), ADD COLUMN shift VARCHAR(50);
+--   ALTER TABLE members ADD COLUMN coaching_goal VARCHAR(255), ADD COLUMN sessions_per_week INT;
+--   (ddl-auto=update adds these two automatically when the backend starts.)
 
 CREATE DATABASE IF NOT EXISTS fitstudio;
 USE fitstudio;
@@ -17,7 +20,9 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,              -- plain text (dev mode)
     phone    VARCHAR(15),
     role     VARCHAR(20)  NOT NULL,              -- ADMIN | RECEPTIONIST | TRAINER | MEMBER
-    status   VARCHAR(20)  NOT NULL DEFAULT 'Active'
+    status   VARCHAR(20)  NOT NULL DEFAULT 'Active',
+    specialization VARCHAR(100),                 -- trainer only
+    shift          VARCHAR(50)                   -- trainer only
 );
 
 CREATE TABLE IF NOT EXISTS membership_plans (
@@ -38,6 +43,8 @@ CREATE TABLE IF NOT EXISTS members (
     plan_id    BIGINT,
     user_id    BIGINT,
     trainer_id BIGINT,
+    coaching_goal     VARCHAR(255),              -- set by the trainer
+    sessions_per_week INT,                       -- set by the trainer
     join_date  DATE,
     start_date DATE,
     end_date   DATE,                             -- start_date + plan.duration_days
