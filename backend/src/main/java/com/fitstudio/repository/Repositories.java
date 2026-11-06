@@ -10,8 +10,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** All repository interfaces in one file. */
+/**
+ * All repository interfaces in one file.
+ */
 public final class Repositories {
+
     private Repositories() {}
 
     public interface UserRepository extends JpaRepository<User, Long> {
@@ -47,16 +50,33 @@ public final class Repositories {
 
     public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
         List<TrainingSession> findByTrainerIdOrderBySessionTime(Long trainerId);
-        List<TrainingSession> findByTrainerIdAndSessionTimeBetweenOrderBySessionTime(Long trainerId, LocalDateTime from, LocalDateTime to);
-        long countByTrainerIdAndSessionTimeBetween(Long trainerId, LocalDateTime from, LocalDateTime to);
+
+        List<TrainingSession> findByTrainerIdAndSessionTimeBetweenOrderBySessionTime(
+                Long trainerId, LocalDateTime from, LocalDateTime to);
+
+        long countByTrainerIdAndSessionTimeBetween(
+                Long trainerId, LocalDateTime from, LocalDateTime to);
+
         void deleteByTrainerId(Long trainerId);
         void deleteByMemberId(Long memberId);
     }
 
     public interface CheckinRepository extends JpaRepository<Checkin, Long> {
         List<Checkin> findByCheckInTimeBetween(LocalDateTime from, LocalDateTime to);
-        boolean existsByMemberIdAndCheckInTimeBetween(Long memberId, LocalDateTime from, LocalDateTime to);
+
+        boolean existsByMemberIdAndCheckInTimeBetween(
+                Long memberId, LocalDateTime from, LocalDateTime to);
+
         long countByCheckInTimeBetween(LocalDateTime from, LocalDateTime to);
+
         void deleteByMemberId(Long memberId);
+    }
+
+    // Payment Repository
+    public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+        List<Payment> findAllByOrderByPaymentDateDesc();
+
+        List<Payment> findByMemberIdOrderByPaymentDateDesc(Long memberId);
     }
 }
