@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
-import { getStoredPlans, saveStoredPlans } from '../services/plansData';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
+
+/** "30 Days" / "1 Month" / "2 Weeks" / "1 Year" -> number of days (backend needs durationDays). */
+function parseDurationDays(text) {
+  const m = String(text || '').match(/(\d+)\s*([a-zA-Z]*)/);
+  if (!m) return 30;
+  const n = Number(m[1]);
+  const unit = m[2].toLowerCase();
+  if (unit.startsWith('year')) return n * 365;
+  if (unit.startsWith('month')) return n * 30;
+  if (unit.startsWith('week')) return n * 7;
+  return n;
+}
 
 /**
  * AdminPlans Page
@@ -9,7 +20,7 @@ import { api } from '../services/api';
  * Accessible at /admin/plans under DashboardLayout.
  */
 function AdminPlans() {
-  const [plans, setPlans] = useState(() => getStoredPlans());
+  const [plans, setPlans] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [notice, setNotice] = useState({ type: '', text: '' });
@@ -26,6 +37,25 @@ function AdminPlans() {
     description: '',
   });
   const [formErrors, setFormErrors] = useState({});
+
+  // Load plans from the Spring Boot backend (the database is the source of truth)
+  const loadPlans = useCallback(async () => {
+    const res = await api.getPlans();
+    if (res.success) {
+      setPlans(res.data);
+    } else {
+      setNotice({
+        type: 'warning',
+        text: res.status === 0
+          ? 'Cannot reach the backend. Make sure the Spring Boot server is running on port 6967.'
+          : res.error || 'Could not load plans.',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlans();
+  }, [loadPlans]);
 
   const resetForm = () => {
     setPlanForm({
@@ -89,90 +119,64 @@ function AdminPlans() {
       : ['Gym Floor Access', 'Locker Room Access'];
 
     const planPayload = {
-      id: editingPlan ? editingPlan.id : `plan-${Date.now()}`,
       name: planForm.name.trim(),
-      duration: planForm.duration.trim(),
+      durationDays: parseDurationDays(planForm.duration),
       fee: Number(planForm.fee),
-      facilities: planForm.facilities.trim() || 'Gym Floor, Locker Rooms',
-      benefits: parsedBenefits,
-      excluded: editingPlan?.excluded || [],
+      features: parsedBenefits.join(', '),
       status: planForm.status,
-      description: planForm.description.trim() || 'Access to FitStudio facility services.',
     };
 
     try {
-      // Connect to Spring Boot backend API
       const res = editingPlan
         ? await api.updatePlan(editingPlan.id, planPayload)
         : await api.createPlan(planPayload);
 
       if (res.success) {
-        setNotice({
-          type: 'success',
-          text: `Plan "${planPayload.name}" saved successfully to backend.`,
-        });
+        await loadPlans(); // refresh the list from the database
+        setNotice({ type: 'success', text: `Plan "${planPayload.name}" saved successfully.` });
+        setShowCreateModal(false);
+        resetForm();
       } else {
-        // Backend offline fallback - update local memory state for senior review demo
-        let updated;
-        if (editingPlan) {
-          updated = plans.map((p) => (p.id === editingPlan.id ? planPayload : p));
-        } else {
-          updated = [...plans, planPayload];
-        }
-        setPlans(updated);
-        saveStoredPlans(updated);
         setNotice({
-          type: 'info',
-          text: `Plan "${planPayload.name}" saved in session store. (Frontend preview mode).`,
+          type: 'warning',
+          text: res.status === 0
+            ? 'Cannot reach the backend. Make sure the Spring Boot server is running on port 6967.'
+            : res.error || 'Could not save the plan.',
         });
       }
-      setShowCreateModal(false);
-      resetForm();
     } catch {
-      let updated;
-      if (editingPlan) {
-        updated = plans.map((p) => (p.id === editingPlan.id ? planPayload : p));
-      } else {
-        updated = [...plans, planPayload];
-      }
-      setPlans(updated);
-      saveStoredPlans(updated);
-      setNotice({
-        type: 'info',
-        text: `Plan "${planPayload.name}" saved in session store. (Frontend preview mode).`,
-      });
-      setShowCreateModal(false);
-      resetForm();
+      setNotice({ type: 'warning', text: 'Something went wrong while saving the plan.' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleToggleStatus = (planId) => {
-    const updated = plans.map((p) => {
-      if (p.id === planId) {
-        const nextStatus = p.status === 'Active' ? 'Inactive' : 'Active';
-        return { ...p, status: nextStatus };
-      }
-      return p;
+  const handleToggleStatus = async (planId) => {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    const res = await api.updatePlan(planId, {
+      name: plan.name,
+      durationDays: plan.durationDays,
+      fee: plan.fee,
+      features: plan.features,
+      status: plan.status === 'Active' ? 'Inactive' : 'Active',
     });
-    setPlans(updated);
-    saveStoredPlans(updated);
-    setNotice({
-      type: 'info',
-      text: 'Plan status updated in session store. (Frontend preview mode).',
-    });
+    if (res.success) {
+      await loadPlans();
+      setNotice({ type: 'success', text: `Plan "${plan.name}" status updated.` });
+    } else {
+      setNotice({ type: 'warning', text: res.error || 'Could not update the plan status.' });
+    }
   };
 
-  const handleDeletePlan = (planId, planName) => {
-    if (window.confirm(`Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`)) {
-      const updated = plans.filter((p) => p.id !== planId);
-      setPlans(updated);
-      saveStoredPlans(updated);
-      setNotice({
-        type: 'info',
-        text: `Plan "${planName}" removed from session store. (Frontend preview mode).`,
-      });
+  const handleDeletePlan = async (planId, planName) => {
+    if (!window.confirm(`Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`)) return;
+    const res = await api.deletePlan(planId);
+    if (res.success) {
+      await loadPlans();
+      setNotice({ type: 'success', text: `Plan "${planName}" deleted.` });
+    } else {
+      setNotice({ type: 'warning', text: res.error || 'Could not delete the plan.' });
     }
   };
 

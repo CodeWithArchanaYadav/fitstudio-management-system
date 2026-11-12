@@ -70,6 +70,8 @@ public class AdminController {
         u.setEmail(req.getEmail());
         u.setPhone(req.getPhone());
         u.setRole(req.getRole());
+        u.setSpecialization(req.getSpecialization());
+        u.setShift(req.getShift());
         if (req.getStatus() != null) u.setStatus(req.getStatus());
         if (req.getPassword() != null && !req.getPassword().isBlank()) {
             if (req.getPassword().length() < 6) throw bad("password must be at least 6 characters");

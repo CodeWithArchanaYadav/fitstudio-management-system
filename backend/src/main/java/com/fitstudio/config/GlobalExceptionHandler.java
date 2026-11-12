@@ -79,6 +79,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> other(Exception e) {
         log.error("Unhandled error", e);
-        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        // DEV: show the real cause so it is visible in the browser (remove before submission)
+        return body(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Something went wrong: " + root.getClass().getSimpleName() + " - " + root.getMessage());
     }
 }

@@ -1,26 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { api } from '../services/api';
 import { getStoredPlans } from '../services/plansData';
-import { useGymData, gymStore } from '../services/gymData';
 
 /**
  * ReceptionistMembers Page
  * Front Desk member lookup, offline registration, details viewing, and contact updates.
  * Accessible at /receptionist/members under DashboardLayout.
  */
-function generateNewMemberId() {
-  return `MEM-${Math.floor(1004 + Math.random() * 900)}`;
-}
-
-function getTodayFormattedDate() {
-  return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function getExpiryFormattedDate() {
-  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 function ReceptionistMembers() {
-  const { members, addMember, updateMember } = useGymData();
+  // Members + trainers come from the backend (real DB ids), not from localStorage.
+  const [members, setMembers] = useState([]);
+  const [trainers, setTrainers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -31,25 +22,44 @@ function ReceptionistMembers() {
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const loadMembers = useCallback(async () => {
+    const [mRes, tRes] = await Promise.all([api.getMembers(), api.getTrainers()]);
+    if (mRes.success) {
+      setMembers(Array.isArray(mRes.data) ? mRes.data : []);
+    } else {
+      setNotice({ type: 'error', text: mRes.error || 'Could not load members from the server.' });
+    }
+    if (tRes.success && Array.isArray(tRes.data)) setTrainers(tRes.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+
+  const trainerName = (member) =>
+    trainers.find((t) => t.id === member.trainerId)?.name || 'Unassigned';
+
   // Admin-configured active plans for registration
-  const availablePlans = getStoredPlans().filter((p) => p.status === 'Active');
+  const activePlans = getStoredPlans().filter((p) => p.status === 'Active');
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    planId: availablePlans[0]?.id || 'plan-standard',
-    emergencyContact: '',
-    address: '',
+    plan: activePlans[0]?.name || 'Standard Pro Plan',
+    password: '',
   });
-  const [errors, setErrors] = useState({});
+  const [formErrors, setFormErrors] = useState({});
 
   const validate = () => {
     const errs = {};
-    if (!formData.fullName.trim()) errs.fullName = 'Full name is required.';
+    if (!formData.fullName.trim()) {
+      errs.fullName = 'Full name is required.';
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      errs.email = 'Email address is required for credential delivery.';
+      errs.email = 'Email address is required.';
     } else if (!emailRegex.test(formData.email.trim())) {
       errs.email = 'Enter a valid email address.';
     }
@@ -59,53 +69,45 @@ function ReceptionistMembers() {
     } else if (phoneDigits.length < 10) {
       errs.phone = 'Enter a valid 10-digit phone number.';
     }
-    setErrors(errs);
+    if (!formData.password) {
+      errs.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
+    }
+    setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleRegisterOfflineMember = (e) => {
+  const handleRegisterOfflineMember = async (e) => {
     e.preventDefault();
+    setNotice({ type: '', text: '' });
+
     if (!validate()) return;
 
     setIsSubmitting(true);
-    setNotice({ type: '', text: '' });
 
-    const selectedPlanObj = availablePlans.find((p) => p.id === formData.planId) || availablePlans[0];
-    const newMemberId = generateNewMemberId();
+    const res = await api.createMember(formData);
+    if (!res.success) {
+      setNotice({ type: 'error', text: res.error || 'Could not register the member.' });
+      setIsSubmitting(false);
+      return;
+    }
 
-    const newMember = {
-      id: newMemberId,
-      fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      emergencyContact: formData.emergencyContact.trim() || 'Not provided',
-      address: formData.address.trim() || 'Not provided',
-      plan: selectedPlanObj?.name || 'Standard Pro Plan',
-      planFee: selectedPlanObj?.fee || 3000,
-      status: 'Active',
-      joinedDate: getTodayFormattedDate(),
-      expiryDate: getExpiryFormattedDate(),
-      totalCheckIns: 0,
-      lastCheckIn: 'Never',
-    };
-
-    addMember(newMember);
-    setShowAddForm(false);
-    setIsSubmitting(false);
-
+    await loadMembers();
     setNotice({
       type: 'info',
-      text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member profile is active and can now be assigned to a personal trainer.`,
+      text: `Registered ${res.data.fullName} with member ID ${res.data.id}. Member record is now active and ready for personal trainer assignment.`,
     });
 
     setFormData({
       fullName: '',
       email: '',
       phone: '',
-      planId: availablePlans[0]?.id || 'plan-standard',
-      emergencyContact: '',
-      address: '',
+      plan: activePlans[0]?.name || 'Standard Pro Plan',
+      password: '',
     });
+    setShowAddForm(false);
+    setIsSubmitting(false);
   };
 
   const handleOpenEdit = (member) => {
@@ -117,30 +119,38 @@ function ReceptionistMembers() {
     });
   };
 
-  const handleSaveContactUpdate = (e) => {
+  const handleSaveContactUpdate = async (e) => {
     e.preventDefault();
     if (!editFormData.phone.trim()) return;
 
-    updateMember(editingMember.id, {
+    const res = await api.updateMember(editingMember.id, {
+      ...editingMember,
       phone: editFormData.phone.trim(),
-      emergencyContact: editFormData.emergencyContact.trim(),
-      address: editFormData.address.trim(),
     });
+    if (!res.success) {
+      setNotice({ type: 'error', text: res.error || 'Could not update contact information.' });
+      setEditingMember(null);
+      return;
+    }
 
+    await loadMembers();
     setNotice({
       type: 'info',
-      text: `Contact information updated for ${editingMember.fullName} (${editingMember.id}).`,
+      text: `Contact information updated for ${editingMember.fullName} (ID ${editingMember.id}).`,
     });
     setEditingMember(null);
   };
 
   const filteredMembers = members.filter((m) => {
+    const q = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.phone.includes(searchQuery) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      String(m.id).toLowerCase().includes(q) ||
+      (m.fullName || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q) ||
+      String(m.phone || '').includes(q);
     const matchesStatus =
-      statusFilter === 'ALL' || m.status.toUpperCase() === statusFilter.toUpperCase();
+      statusFilter === 'ALL' || (m.status || '').toUpperCase() === statusFilter.toUpperCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -180,119 +190,113 @@ function ReceptionistMembers() {
       {showAddForm && (
         <div className="card mb-3" style={{ border: '1px solid var(--color-primary)' }}>
           <div className="card-header">
-            <div>
-              <h2 className="card-title">Offline Member Registration (Front Desk)</h2>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                Enter the member's details to create their gym profile and initiate account credentials
-              </p>
-            </div>
-            <span className="badge badge-green">In-Person Registration</span>
-          </div>
-
-          <div style={{ backgroundColor: 'var(--color-bg)', padding: '0.85rem 1rem', borderRadius: '6px', marginBottom: '1.25rem', border: '1px solid var(--color-border)' }}>
-            <p style={{ fontSize: '0.86rem', color: 'var(--color-text-muted)', margin: 0 }}>
-              ✉️ <strong>Credential Delivery Workflow:</strong> The member receives their account username and a temporary password / secure setup link at their registered email. They will use this to sign in via the common Login page.
-            </p>
+            <h2 className="card-title">Register New Member (Front Desk)</h2>
           </div>
 
           <form onSubmit={handleRegisterOfflineMember} noValidate>
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">Full Name *</label>
+                <label htmlFor="receptionist-member-name" className="form-label">
+                  Full Name *
+                </label>
                 <input
+                  id="receptionist-member-name"
                   type="text"
                   className="form-input"
                   placeholder="e.g. Sameer Kulkarni"
                   value={formData.fullName}
                   onChange={(e) => {
                     setFormData({ ...formData, fullName: e.target.value });
-                    if (errors.fullName) setErrors({ ...errors, fullName: '' });
+                    if (formErrors.fullName) setFormErrors({ ...formErrors, fullName: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.fullName && <div className="form-error">{errors.fullName}</div>}
+                {formErrors.fullName && <div className="form-error">{formErrors.fullName}</div>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Email Address (for login credentials) *</label>
+                <label htmlFor="receptionist-member-email" className="form-label">
+                  Email Address *
+                </label>
                 <input
+                  id="receptionist-member-email"
                   type="email"
                   className="form-input"
                   placeholder="sameer.k@example.com"
                   value={formData.email}
                   onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value });
-                    if (errors.email) setErrors({ ...errors, email: '' });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.email && <div className="form-error">{errors.email}</div>}
+                {formErrors.email && <div className="form-error">{formErrors.email}</div>}
               </div>
             </div>
 
             <div className="grid-2">
               <div className="form-group">
-                <label className="form-label">Phone Number *</label>
+                <label htmlFor="receptionist-member-phone" className="form-label">
+                  Phone Number *
+                </label>
                 <input
+                  id="receptionist-member-phone"
                   type="tel"
                   className="form-input"
                   placeholder="+91 98765 43210"
                   value={formData.phone}
                   onChange={(e) => {
                     setFormData({ ...formData, phone: e.target.value });
-                    if (errors.phone) setErrors({ ...errors, phone: '' });
+                    if (formErrors.phone) setFormErrors({ ...formErrors, phone: '' });
                   }}
                   disabled={isSubmitting}
                 />
-                {errors.phone && <div className="form-error">{errors.phone}</div>}
+                {formErrors.phone && <div className="form-error">{formErrors.phone}</div>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Membership Plan (Configured by Admin) *</label>
+                <label htmlFor="receptionist-member-plan" className="form-label">
+                  Membership Tier *
+                </label>
                 <select
+                  id="receptionist-member-plan"
                   className="form-select"
-                  value={formData.planId}
-                  onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
+                  value={formData.plan}
+                  onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                   disabled={isSubmitting}
                 >
-                  {availablePlans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — ₹{p.fee.toLocaleString('en-IN')} ({p.duration})
+                  {activePlans.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} (₹{p.fee.toLocaleString('en-IN')}/{p.duration})
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Emergency Contact (Optional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. +91 98765 43299 (Spouse)"
-                  value={formData.emergencyContact}
-                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Residential Address (Optional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Bandra West, Mumbai"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  disabled={isSubmitting}
-                />
-              </div>
+            <div className="form-group">
+              <label htmlFor="receptionist-member-password" className="form-label">
+                Password * (min 6 characters)
+              </label>
+              <input
+                id="receptionist-member-password"
+                type="password"
+                className="form-input"
+                placeholder="Set account password"
+                value={formData.password}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (formErrors.password) setFormErrors({ ...formErrors, password: '' });
+                }}
+                disabled={isSubmitting}
+                autoComplete="new-password"
+              />
+              {formErrors.password && <div className="form-error">{formErrors.password}</div>}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Registering...' : 'Complete Walk-In Registration'}
+                {isSubmitting ? 'Registering...' : 'Submit Registration'}
               </button>
               <button
                 type="button"
@@ -355,9 +359,7 @@ function ReceptionistMembers() {
             <tbody>
               {filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => {
-                  const assignedCoach = gymStore.getTrainerForMember(member.id);
-                  const coachName = assignedCoach ? assignedCoach.name : 'Unassigned';
-                  const checkInsCount = member.totalCheckIns ?? (member.status === 'Active' ? 18 : 0);
+                  const coachName = trainerName(member);
 
                   return (
                     <tr key={member.id}>
@@ -378,7 +380,7 @@ function ReceptionistMembers() {
                           {member.status}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{checkInsCount}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{member.totalCheckIns ?? '-'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
                           <button
@@ -403,7 +405,7 @@ function ReceptionistMembers() {
               ) : (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No members found matching "{searchQuery}".
+                    {loading ? 'Loading members...' : `No members found matching "${searchQuery}".`}
                   </td>
                 </tr>
               )}
@@ -447,7 +449,7 @@ function ReceptionistMembers() {
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Assigned Coach</span>
-                <strong>{gymStore.getTrainerForMember(selectedMember.id)?.name || 'Unassigned'}</strong>
+                <strong>{trainerName(selectedMember)}</strong>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Joined Date</span>
@@ -455,26 +457,26 @@ function ReceptionistMembers() {
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Pass Expiry Date</span>
-                <span>{selectedMember.expiryDate}</span>
+                <span>{selectedMember.expiryDate || '-'}</span>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Last Recorded Check-In</span>
-                <span>{selectedMember.lastCheckIn}</span>
+                <span>{selectedMember.lastCheckIn || '-'}</span>
               </div>
               <div>
                 <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Total Lifetime Visits</span>
-                <strong>{selectedMember.totalCheckIns} Visits</strong>
+                <strong>{selectedMember.totalCheckIns ?? '-'} Visits</strong>
               </div>
             </div>
 
             <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Residential Address</span>
-              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.address}</p>
+              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.address || '-'}</p>
             </div>
 
             <div style={{ marginTop: '0.75rem' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'block' }}>Emergency Contact</span>
-              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.emergencyContact}</p>
+              <p style={{ fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>{selectedMember.emergencyContact || '-'}</p>
             </div>
 
             <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>

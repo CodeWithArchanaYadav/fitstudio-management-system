@@ -1,82 +1,68 @@
-import React, { useState } from 'react';
-import { useGymData } from '../services/gymData';
+import React, { useState, useEffect, useCallback } from 'react';
+import { api } from '../services/api';
 
 /**
  * ReceptionistAttendance Page
  * Dedicated front desk facility check-in and attendance log.
  * Accessible at /receptionist/attendance under DashboardLayout.
  */
-function formatCheckInTime() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function generateLogId() {
-  return `ATT-2026-${Math.floor(100 + Math.random() * 900)}`;
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function ReceptionistAttendance() {
-  const { members, updateMember } = useGymData();
+  // Members and today's check-ins come from the backend (real DB ids).
+  const [members, setMembers] = useState([]);
+  const [todayLog, setTodayLog] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [notice, setNotice] = useState({ type: '', text: '' });
 
-  // Attendance log for the current shift (development session preview)
-  const [attendanceLog, setAttendanceLog] = useState([
-    {
-      logId: 'ATT-2026-081',
-      memberId: 'MEM-1002',
-      memberName: 'Priya Patel',
-      plan: 'Premium Elite Plan',
-      timestamp: 'Today, 07:15 AM',
-      facilityArea: 'Cardio & Functional Turf',
-      staffOperator: 'Sunil Rao (Receptionist)',
-      status: 'Checked In',
-    },
-  ]);
+  const loadData = useCallback(async () => {
+    const [mRes, cRes] = await Promise.all([api.getMembers(), api.getTodayCheckins()]);
+    if (mRes.success) {
+      setMembers(Array.isArray(mRes.data) ? mRes.data : []);
+    } else {
+      setNotice({ type: 'error', text: mRes.error || 'Could not load members from the server.' });
+    }
+    if (cRes.success && Array.isArray(cRes.data)) setTodayLog(cRes.data);
+    setLoading(false);
+  }, []);
 
-  const handleCheckIn = (member) => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const memberById = (id) => members.find((m) => m.id === id);
+
+  const handleCheckIn = async (member) => {
     setNotice({ type: '', text: '' });
 
-    if (member.status === 'Expired') {
+    const res = await api.checkIn(member.id);
+    if (!res.success) {
       setNotice({
         type: 'error',
-        text: `Cannot check in ${member.fullName} (${member.id}): Membership is EXPIRED. Please process a pass renewal first via Memberships & Renewals.`,
+        text: `Cannot check in ${member.fullName} (ID ${member.id}): ${res.error}`,
       });
       return;
     }
 
-    const timeStr = formatCheckInTime();
-    const fullTimeStr = `Today, ${timeStr}`;
-
-    const newLogEntry = {
-      logId: generateLogId(),
-      memberId: member.id,
-      memberName: member.fullName,
-      plan: member.plan,
-      timestamp: fullTimeStr,
-      facilityArea: 'Main Gym Floor',
-      staffOperator: 'Front Desk Operator',
-      status: 'Checked In',
-    };
-
-    setAttendanceLog([newLogEntry, ...attendanceLog]);
-
-    // Update member's last check-in display in shared store
-    updateMember(member.id, {
-      lastCheckIn: fullTimeStr,
-      totalCheckIns: (member.totalCheckIns || 0) + 1,
-    });
-
+    await loadData();
     setNotice({
       type: 'info',
-      text: `Facility check-in recorded for ${member.fullName} (${member.id}) at ${timeStr}. (Tracked in local session state for frontend review).`,
+      text: `Facility check-in recorded for ${member.fullName} (ID ${member.id}) at ${formatTime(res.data.checkInTime)}.`,
     });
   };
 
+  const q = searchQuery.trim().toLowerCase();
   const filteredMembers = members.filter(
     (m) =>
-      m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.phone.includes(searchQuery) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase())
+      !q ||
+      String(m.id) === q ||
+      String(m.userId ?? '') === q ||
+      String(m.id).includes(q) ||
+      (m.fullName || '').toLowerCase().includes(q) ||
+      String(m.phone || '').includes(q)
   );
 
   return (
@@ -114,7 +100,7 @@ function ReceptionistAttendance() {
             <input
               type="text"
               className="form-input"
-              placeholder="Search by name, phone, or ID..."
+              placeholder="Search by name, phone, or member ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -147,7 +133,9 @@ function ReceptionistAttendance() {
                         {member.status}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{member.lastCheckIn}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>
+                      {todayLog.some((c) => c.memberId === member.id) ? 'Today' : '-'}
+                    </td>
                     <td>
                       <button
                         type="button"
@@ -162,7 +150,7 @@ function ReceptionistAttendance() {
               ) : (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                    No members match "{searchQuery}".
+                    {loading ? 'Loading members...' : `No members match "${searchQuery}".`}
                   </td>
                 </tr>
               )}
@@ -181,7 +169,7 @@ function ReceptionistAttendance() {
             </p>
           </div>
           <span className="badge badge-blue">
-            {attendanceLog.length} Check-Ins Logged Today
+            {todayLog.length} Check-Ins Logged Today
           </span>
         </div>
 
@@ -200,19 +188,22 @@ function ReceptionistAttendance() {
               </tr>
             </thead>
             <tbody>
-              {attendanceLog.length > 0 ? (
-                attendanceLog.map((log) => (
-                  <tr key={log.logId}>
-                    <td style={{ fontWeight: 600 }}>{log.logId}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{log.timestamp}</td>
-                    <td style={{ fontWeight: 500 }}>{log.memberName}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{log.memberId}</td>
-                    <td>{log.plan}</td>
-                    <td>{log.facilityArea}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{log.staffOperator}</td>
-                    <td><span className="badge badge-green">{log.status}</span></td>
-                  </tr>
-                ))
+              {todayLog.length > 0 ? (
+                [...todayLog].reverse().map((log) => {
+                  const m = memberById(log.memberId);
+                  return (
+                    <tr key={log.id}>
+                      <td style={{ fontWeight: 600 }}>ATT-{log.id}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Today, {formatTime(log.checkInTime)}</td>
+                      <td style={{ fontWeight: 500 }}>{m?.fullName || `Member #${log.memberId}`}</td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>{log.memberId}</td>
+                      <td>{m?.plan || '-'}</td>
+                      <td>Main Gym Floor</td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>Front Desk</td>
+                      <td><span className="badge badge-green">Checked In</span></td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '3rem' }}>

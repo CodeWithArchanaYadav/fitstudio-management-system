@@ -1,10 +1,11 @@
 package com.fitstudio.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Entity
 @Table(name = "workout_routines")
@@ -17,12 +18,16 @@ public class WorkoutRoutine {
     @NotBlank
     private String title;
 
+    private String goal;        // NEW
+    private String schedule;    // NEW
     private String targetMuscle;
 
     private String difficulty;
 
-    @Column(columnDefinition = "TEXT")
-    private String exercises;
+    @Valid
+    @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("sortOrder ASC")
+    private List<WorkoutExercise> exercises = new ArrayList<>();   // was a TEXT field
 
     private Long trainerId;
 

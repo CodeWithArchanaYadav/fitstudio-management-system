@@ -36,6 +36,11 @@ public class Member {
 
     private Long trainerId;
 
+    /** Set by the assigned trainer. */
+    @Column(length = 255)
+    private String coachingGoal;
+    private Integer sessionsPerWeek;
+
     private LocalDate joinDate;
 
     private LocalDate startDate;

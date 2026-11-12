@@ -11,10 +11,7 @@ import { useGymData } from '../services/gymData';
  */
 function MemberProfile() {
   const {
-    members,
     activeMember,
-    activeMemberId,
-    setActiveMemberId,
     memberTrainer,
     memberWorkout,
     updateMember,
@@ -121,28 +118,7 @@ function MemberProfile() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label htmlFor="switch-member-prof" style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
-              Switch Member Preview:
-            </label>
-            <select
-              id="switch-member-prof"
-              className="form-select"
-              style={{ width: 'auto', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-              value={activeMemberId}
-              onChange={(e) => {
-                setActiveMemberId(e.target.value);
-                setIsEditing(false);
-                setNotice({ type: '', text: '' });
-              }}
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.fullName} ({m.id})
-                </option>
-              ))}
-            </select>
-          </div>
+
         </div>
       </div>
 

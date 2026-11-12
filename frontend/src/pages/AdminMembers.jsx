@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getStoredPlans } from '../services/plansData';
-import { useGymData } from '../services/gymData';
 
 /**
  * AdminMembers Page
@@ -9,7 +8,23 @@ import { useGymData } from '../services/gymData';
  * Accessible at /admin/members under DashboardLayout.
  */
 function AdminMembers() {
-  const { members, addMember } = useGymData();
+  // Members come from the backend (real DB ids), not from localStorage.
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadMembers = useCallback(async () => {
+    const res = await api.getMembers();
+    if (res.success) {
+      setMembers(Array.isArray(res.data) ? res.data : []);
+    } else {
+      setStatusNotice({ type: 'error', text: res.error || 'Could not load members from the server.' });
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,6 +35,7 @@ function AdminMembers() {
     email: '',
     phone: '',
     plan: 'Standard Pro Plan',
+    password: '',
   });
   const [formErrors, setFormErrors] = useState({});
   const [statusNotice, setStatusNotice] = useState({ type: '', text: '' });
@@ -34,7 +50,7 @@ function AdminMembers() {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      errs.email = 'Email address is required for credential delivery.';
+      errs.email = 'Email address is required.';
     } else if (!emailRegex.test(formData.email.trim())) {
       errs.email = 'Enter a valid email address.';
     }
@@ -43,6 +59,11 @@ function AdminMembers() {
       errs.phone = 'Phone number is required.';
     } else if (phoneDigits.length < 10) {
       errs.phone = 'Enter a valid 10-digit phone number.';
+    }
+    if (!formData.password) {
+      errs.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
     }
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -58,41 +79,38 @@ function AdminMembers() {
 
     setIsSubmitting(true);
 
-    const newMemberId = `MEM-${Math.floor(1004 + Math.random() * 800)}`;
-    const newMember = {
-      id: newMemberId,
-      fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      plan: formData.plan,
-      status: 'Active',
-      joinedDate: new Date().toISOString().split('T')[0],
-    };
-
-    addMember(newMember);
-
-    try {
-      await api.createMember(formData);
-    } catch {
-      // In offline/frontend preview mode, fallback safely
+    const res = await api.createMember(formData);
+    if (!res.success) {
+      setStatusNotice({ type: 'error', text: res.error || 'Could not register the member.' });
+      setIsSubmitting(false);
+      return;
     }
 
+    await loadMembers();
     setStatusNotice({
       type: 'success',
-      text: `Offline registration recorded for ${newMember.fullName} (${newMember.id}). Member record is now active and ready for personal trainer assignment.`,
+      text: `Member ${res.data.fullName} registered with ID ${res.data.id}.`,
     });
-    setFormData({ fullName: '', email: '', phone: '', plan: activePlans[0]?.name || 'Standard Pro Plan' });
+    setFormData({ fullName: '', email: '', phone: '', plan: activePlans[0]?.name || 'Standard Pro Plan', password: '' });
     setShowAddForm(false);
     setIsSubmitting(false);
   };
 
   const filteredMembers = members.filter((m) => {
+    const q = searchQuery.trim().toLowerCase();
+    // "5", "MEM-5" or "#5" -> exact Member ID match only (no phone/other partial matches)
+    const idQuery = q.replace(/^(mem-?|id:?|#)\s*/, '');
+    const isIdSearch = /^\d{1,6}$/.test(idQuery);
     const matchesSearch =
-      m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      (isIdSearch
+        ? String(m.id) === String(Number(idQuery))
+        : (m.fullName || '').toLowerCase().includes(q) ||
+          (m.email || '').toLowerCase().includes(q) ||
+          String(m.phone || '').includes(q) ||
+          String(m.id).toLowerCase().includes(q));
     const matchesStatus =
-      statusFilter === 'ALL' || m.status.toUpperCase() === statusFilter.toUpperCase();
+      statusFilter === 'ALL' || (m.status || '').toUpperCase() === statusFilter.toUpperCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -215,6 +233,26 @@ function AdminMembers() {
               </div>
             </div>
 
+            <div className="form-group">
+              <label htmlFor="admin-member-password" className="form-label">
+                Password * (min 6 characters)
+              </label>
+              <input
+                id="admin-member-password"
+                type="password"
+                className="form-input"
+                placeholder="Set account password"
+                value={formData.password}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (formErrors.password) setFormErrors({ ...formErrors, password: '' });
+                }}
+                disabled={isSubmitting}
+                autoComplete="new-password"
+              />
+              {formErrors.password && <div className="form-error">{formErrors.password}</div>}
+            </div>
+
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
               <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
                 {isSubmitting ? 'Registering...' : 'Submit Registration'}
@@ -301,7 +339,7 @@ function AdminMembers() {
               ) : (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No members match the selected criteria.
+                    {loading ? 'Loading members...' : 'No members match the selected criteria.'}
                   </td>
                 </tr>
               )}
