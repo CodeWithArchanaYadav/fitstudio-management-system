@@ -3,16 +3,14 @@ package com.fitstudio.model;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
 @Table(name = "workout_routines")
-@Getter @Setter
 public class WorkoutRoutine {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,6 +21,7 @@ public class WorkoutRoutine {
     private String goal;        // NEW
     private String schedule;    // NEW
     private String targetMuscle;
+
     private String difficulty;
 
     @Valid
@@ -32,26 +31,69 @@ public class WorkoutRoutine {
 
     private Long trainerId;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "member_workouts", joinColumns = @JoinColumn(name = "routine_id"))
+    @CollectionTable(
+            name = "member_workouts",
+            joinColumns = @JoinColumn(name = "routine_id")
+    )
     @Column(name = "member_id")
     private Set<Long> memberIds = new HashSet<>();
 
-    @PrePersist void onCreate() { createdAt = updatedAt = LocalDateTime.now(); }
-    @PreUpdate  void onUpdate() { updatedAt = LocalDateTime.now(); }
+    // Getters and Setters
 
-    public void replaceExercises(List<WorkoutExercise> incoming) {
-        exercises.clear();
-        if (incoming == null) return;
-        int i = 0;
-        for (WorkoutExercise e : incoming) {
-            e.setId(null);
-            e.setRoutine(this);
-            e.setSortOrder(i++);
-            exercises.add(e);
-        }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getTargetMuscle() {
+        return targetMuscle;
+    }
+
+    public void setTargetMuscle(String targetMuscle) {
+        this.targetMuscle = targetMuscle;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
+    }
+
+    public String getExercises() {
+        return exercises;
+    }
+
+    public void setExercises(String exercises) {
+        this.exercises = exercises;
+    }
+
+    public Long getTrainerId() {
+        return trainerId;
+    }
+
+    public void setTrainerId(Long trainerId) {
+        this.trainerId = trainerId;
+    }
+
+    public Set<Long> getMemberIds() {
+        return memberIds;
+    }
+
+    public void setMemberIds(Set<Long> memberIds) {
+        this.memberIds = memberIds;
     }
 }

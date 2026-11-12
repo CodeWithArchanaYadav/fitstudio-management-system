@@ -10,55 +10,116 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** All repository interfaces in one file. */
+/**
+ * All repository interfaces in one file.
+ */
 public final class Repositories {
+
     private Repositories() {}
 
+    // User Repository
     public interface UserRepository extends JpaRepository<User, Long> {
+
         Optional<User> findByEmail(String email);
+
         boolean existsByEmail(String email);
+
         boolean existsByEmailAndIdNot(String email, Long id);
+
         List<User> findByRole(User.Role role);
+
         long countByRoleAndStatus(User.Role role, String status);
     }
 
-    public interface MembershipPlanRepository extends JpaRepository<MembershipPlan, Long> {
+    // Membership Plan Repository
+    public interface MembershipPlanRepository
+            extends JpaRepository<MembershipPlan, Long> {
+
         boolean existsByName(String name);
+
         boolean existsByNameAndIdNot(String name, Long id);
     }
 
+    // Member Repository
     public interface MemberRepository extends JpaRepository<Member, Long> {
+
         Optional<Member> findByUserId(Long userId);
+
         boolean existsByEmail(String email);
+
         boolean existsByPlanId(Long planId);
+
         List<Member> findByTrainerId(Long trainerId);
+
         long countByStatus(String status);
+
         long countByTrainerId(Long trainerId);
-        long countByStatusAndEndDateBetween(String status, LocalDate from, LocalDate to);
+
+        long countByStatusAndEndDateBetween(
+                String status, LocalDate from, LocalDate to);
     }
 
-    public interface WorkoutRoutineRepository extends JpaRepository<WorkoutRoutine, Long> {
+    // Workout Routine Repository
+    public interface WorkoutRoutineRepository
+            extends JpaRepository<WorkoutRoutine, Long> {
+
         List<WorkoutRoutine> findByTrainerId(Long trainerId);
-        long countByTrainerId(Long trainerId);
+
         void deleteByTrainerId(Long trainerId);
 
         @Query("select r from WorkoutRoutine r where :memberId member of r.memberIds")
         List<WorkoutRoutine> findAssignedTo(@Param("memberId") Long memberId);
     }
 
-    public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
+    // Training Session Repository
+    public interface TrainingSessionRepository
+            extends JpaRepository<TrainingSession, Long> {
+
         List<TrainingSession> findByTrainerIdOrderBySessionTime(Long trainerId);
-        List<TrainingSession> findByTrainerIdAndSessionTimeBetweenOrderBySessionTime(Long trainerId, LocalDateTime from, LocalDateTime to);
-        List<TrainingSession> findByTrainerIdAndSessionTime(Long trainerId, LocalDateTime time);
-        long countByTrainerIdAndSessionTimeBetween(Long trainerId, LocalDateTime from, LocalDateTime to);
+
+        List<TrainingSession> findByTrainerIdAndSessionTimeBetweenOrderBySessionTime(
+                Long trainerId, LocalDateTime from, LocalDateTime to);
+
+        long countByTrainerIdAndSessionTimeBetween(
+                Long trainerId, LocalDateTime from, LocalDateTime to);
+
         void deleteByTrainerId(Long trainerId);
+
         void deleteByMemberId(Long memberId);
     }
 
+    // Check-in Repository
     public interface CheckinRepository extends JpaRepository<Checkin, Long> {
-        List<Checkin> findByCheckInTimeBetween(LocalDateTime from, LocalDateTime to);
-        boolean existsByMemberIdAndCheckInTimeBetween(Long memberId, LocalDateTime from, LocalDateTime to);
-        long countByCheckInTimeBetween(LocalDateTime from, LocalDateTime to);
+
+        List<Checkin> findByCheckInTimeBetween(
+                LocalDateTime from, LocalDateTime to);
+
+        boolean existsByMemberIdAndCheckInTimeBetween(
+                Long memberId, LocalDateTime from, LocalDateTime to);
+
+        long countByCheckInTimeBetween(
+                LocalDateTime from, LocalDateTime to);
+
         void deleteByMemberId(Long memberId);
+    }
+
+    // Payment Repository
+    public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+        List<Payment> findAllByOrderByPaymentDateDesc();
+
+        List<Payment> findByMemberIdOrderByPaymentDateDesc(Long memberId);
+    }
+
+    // Membership Subscription Repository
+    public interface MembershipSubscriptionRepository
+            extends JpaRepository<MembershipSubscription, Long> {
+
+        List<MembershipSubscription> findAllByOrderByStartDateDesc();
+
+        List<MembershipSubscription> findByMemberIdOrderByStartDateDesc(
+                Long memberId);
+
+        List<MembershipSubscription> findByStatus(String status);
     }
 }
