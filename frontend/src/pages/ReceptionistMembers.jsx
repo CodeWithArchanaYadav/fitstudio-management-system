@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { getStoredPlans } from '../services/plansData';
 
 /**
  * ReceptionistMembers Page
@@ -8,9 +7,9 @@ import { getStoredPlans } from '../services/plansData';
  * Accessible at /receptionist/members under DashboardLayout.
  */
 function ReceptionistMembers() {
-  // Members + trainers come from the backend (real DB ids), not from localStorage.
   const [members, setMembers] = useState([]);
   const [trainers, setTrainers] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,13 +22,20 @@ function ReceptionistMembers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadMembers = useCallback(async () => {
-    const [mRes, tRes] = await Promise.all([api.getMembers(), api.getTrainers()]);
+    const [mRes, tRes, pRes] = await Promise.all([
+      api.getMembers(),
+      api.getTrainers(),
+      api.getPlans(),
+    ]);
     if (mRes.success) {
       setMembers(Array.isArray(mRes.data) ? mRes.data : []);
     } else {
       setNotice({ type: 'error', text: mRes.error || 'Could not load members from the server.' });
     }
     if (tRes.success && Array.isArray(tRes.data)) setTrainers(tRes.data);
+    if (pRes.success && Array.isArray(pRes.data)) {
+      setPlans(pRes.data.filter((p) => p.status === 'Active'));
+    }
     setLoading(false);
   }, []);
 
@@ -40,14 +46,13 @@ function ReceptionistMembers() {
   const trainerName = (member) =>
     trainers.find((t) => t.id === member.trainerId)?.name || 'Unassigned';
 
-  // Admin-configured active plans for registration
-  const activePlans = getStoredPlans().filter((p) => p.status === 'Active');
+  const activePlans = plans;
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    plan: activePlans[0]?.name || 'Standard Pro Plan',
+    plan: 'Standard Pro Plan',
     password: '',
   });
   const [formErrors, setFormErrors] = useState({});

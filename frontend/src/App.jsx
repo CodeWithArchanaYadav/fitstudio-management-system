@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Layout
+// Layout & Route Protection
 import DashboardLayout from './components/DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Public Pages
 import Home from './pages/Home';
@@ -51,7 +52,14 @@ function App() {
         <Route path="/register" element={<Navigate to="/login" replace />} />
 
         {/* Admin Dashboard Routes with Shared Layout */}
-        <Route path="/admin" element={<DashboardLayout role="admin" />}>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRole="ADMIN">
+              <DashboardLayout role="admin" />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="members" element={<AdminMembers />} />
@@ -60,7 +68,14 @@ function App() {
         </Route>
 
         {/* Receptionist Dashboard Routes with Shared Layout */}
-        <Route path="/receptionist" element={<DashboardLayout role="receptionist" />}>
+        <Route
+          path="/receptionist"
+          element={
+            <ProtectedRoute allowedRole="RECEPTIONIST">
+              <DashboardLayout role="receptionist" />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<ReceptionistDashboard />} />
           <Route path="members" element={<ReceptionistMembers />} />
@@ -71,7 +86,14 @@ function App() {
         </Route>
 
         {/* Trainer Dashboard Routes with Shared Layout */}
-        <Route path="/trainer" element={<DashboardLayout role="trainer" />}>
+        <Route
+          path="/trainer"
+          element={
+            <ProtectedRoute allowedRole="TRAINER">
+              <DashboardLayout role="trainer" />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<TrainerDashboard />} />
           <Route path="members" element={<TrainerMembers />} />
@@ -79,7 +101,14 @@ function App() {
         </Route>
 
         {/* Member Dashboard Routes with Shared Layout */}
-        <Route path="/member" element={<DashboardLayout role="member" />}>
+        <Route
+          path="/member"
+          element={
+            <ProtectedRoute allowedRole="MEMBER">
+              <DashboardLayout role="member" />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<MemberDashboard />} />
           <Route path="profile" element={<MemberProfile />} />

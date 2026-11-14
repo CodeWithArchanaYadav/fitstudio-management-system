@@ -1,44 +1,91 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useGymData } from '../services/gymData';
+import { api } from '../services/api';
+
+/** Format a date string (YYYY-MM-DD) into standard readable date */
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
 
 /**
  * MemberDashboard Page
- * Overview dashboard for gym members.
- * Connected to the shared FitStudio data layer.
- * Displays member's real assigned trainer and prescribed workout plan.
+ * Personalized overview for authenticated gym members.
+ * Reads live data directly from the backend Member Portal endpoints:
+ * - /api/me/membership
+ * - /api/me/trainer
+ * - /api/me/workouts
  * Renders within the shared DashboardLayout.
  */
 function MemberDashboard() {
-  const {
-    activeMember,
-    memberTrainer,
-    memberWorkout,
-  } = useGymData();
+  const [membership, setMembership] = useState(null);
+  const [trainer, setTrainer] = useState(null);
+  const [workouts, setWorkouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorNotice, setErrorNotice] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMemberData = async () => {
+      const [memRes, trnRes, wrkRes] = await Promise.all([
+        api.getMyMembership(),
+        api.getMyTrainer(),
+        api.getMyWorkouts(),
+      ]);
+
+      if (cancelled) return;
+
+      if (memRes.success) {
+        setMembership(memRes.data);
+      } else if (memRes.status === 404) {
+        // Member profile not yet linked to this user account
+        setMembership(null);
+      } else if (memRes.status === 0) {
+        setErrorNotice('Cannot reach backend service. Please ensure the server is active.');
+      }
+
+      if (trnRes.success) {
+        setTrainer(trnRes.data);
+      } else {
+        setTrainer(null);
+      }
+
+      if (wrkRes.success && Array.isArray(wrkRes.data)) {
+        setWorkouts(wrkRes.data);
+      } else {
+        setWorkouts([]);
+      }
+
+      setLoading(false);
+    };
+
+    loadMemberData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeWorkout = workouts.length > 0 ? workouts[0] : null;
 
   return (
     <div>
-      {/* Active Member Overview Banner */}
-      <div className="card mb-3" style={{ padding: '0.75rem 1.25rem', backgroundColor: 'var(--color-surface)' }}>
-        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Active Member Overview:
-            </span>
-            <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-              {activeMember ? `${activeMember.fullName} (${activeMember.id})` : 'Member'}
-            </strong>
-            <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
-              {activeMember?.plan}
-            </span>
-          </div>
-        </div>
-      </div>
-
       <header className="dashboard-header">
         <h1>Member Dashboard</h1>
-        <p>Welcome back, {activeMember?.fullName}! Here is your FitStudio membership overview.</p>
+        <p>Membership status, assigned coach, and prescribed training regimen</p>
       </header>
+
+      {errorNotice && (
+        <div className="notice-box notice-warning mb-3">
+          {errorNotice}
+        </div>
+      )}
 
       {/* Member Stat Cards */}
       <div className="grid-4 mb-3">
@@ -46,27 +93,31 @@ function MemberDashboard() {
           <div className="stat-label">Membership Status</div>
           <div
             className="stat-value"
-            style={{ color: activeMember?.status === 'Active' ? 'var(--color-primary)' : 'var(--color-danger)' }}
+            style={{
+              fontSize: '1.4rem',
+              paddingTop: '0.2rem',
+              color: membership?.status === 'Active' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            }}
           >
-            {activeMember?.status || 'Active'}
+            {loading ? '—' : membership?.status || 'No Active Plan'}
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Assigned Plan</div>
-          <div className="stat-value" style={{ fontSize: '1.25rem', paddingTop: '0.35rem' }}>
-            {activeMember?.plan ? activeMember.plan.split(' ')[0] + ' Tier' : 'Standard'}
+          <div className="stat-value" style={{ fontSize: '1.35rem', paddingTop: '0.2rem' }}>
+            {loading ? '—' : membership?.plan || 'None'}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Assigned Personal Trainer</div>
-          <div className="stat-value" style={{ fontSize: '1.2rem', paddingTop: '0.35rem', color: memberTrainer ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
-            {memberTrainer ? memberTrainer.name : 'Unassigned'}
+          <div className="stat-label">Personal Trainer</div>
+          <div className="stat-value" style={{ fontSize: '1.25rem', paddingTop: '0.2rem', color: trainer ? 'var(--color-text)' : 'var(--color-text-muted)' }}>
+            {loading ? '—' : trainer ? trainer.name : 'Unassigned'}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Prescribed Routine</div>
-          <div className="stat-value" style={{ fontSize: '1.2rem', paddingTop: '0.35rem', color: memberWorkout ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
-            {memberWorkout ? 'Active Plan' : 'None'}
+          <div className="stat-label">Days Remaining</div>
+          <div className="stat-value" style={{ color: 'var(--color-primary)' }}>
+            {loading ? '—' : membership?.daysRemaining !== undefined ? `${membership.daysRemaining} Days` : '—'}
           </div>
         </div>
       </div>
@@ -74,60 +125,81 @@ function MemberDashboard() {
       {/* Quick Navigation Cards */}
       <div className="card mb-3">
         <div className="card-header">
-          <h2 className="card-title">Member Quick Navigation</h2>
+          <h2 className="card-title">Member Navigation</h2>
         </div>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-          Access your personal fitness records, membership details, and payment invoices:
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+          Direct access to personal fitness records, membership details, and payment history:
         </p>
         <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
           <Link to="/member/profile" className="btn btn-secondary">
-            👤 My Complete Profile
+            My Complete Profile
           </Link>
           <Link to="/member/workouts" className="btn btn-primary">
-            🏋️ My Assigned Workouts {memberWorkout && '✓'}
+            My Assigned Workouts {activeWorkout && '✓'}
           </Link>
           <Link to="/member/membership" className="btn btn-secondary">
-            📋 My Membership Plan
+            My Membership Plan
           </Link>
           <Link to="/member/payments" className="btn btn-secondary">
-            💳 My Invoices & Receipts
+            Payment History
           </Link>
         </div>
       </div>
 
       <div className="grid-2">
-        {/* Today's Workout Routine Preview from Shared Store */}
-        <div className="card">
+        {/* Assigned Workout Routine Preview */}
+        <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header">
             <h3 className="card-title">Assigned Workout Routine Preview</h3>
-            {memberWorkout ? (
+            {activeWorkout ? (
               <span className="badge badge-green">Prescribed</span>
             ) : (
               <span className="badge badge-gray">Not Assigned</span>
             )}
           </div>
 
-          {memberWorkout ? (
+          {activeWorkout ? (
             <div>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.35rem', color: 'var(--color-text)' }}>
-                {memberWorkout.planName}
+              <div style={{ fontWeight: 600, fontSize: '1.05rem', marginBottom: '0.25rem', color: 'var(--color-text)' }}>
+                {activeWorkout.title || activeWorkout.planName}
               </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', marginBottom: '1rem' }}>
-                Prescribed by Coach {memberTrainer?.name || 'Personal Coach'} • {memberWorkout.exercises?.length || 0} Exercises
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.86rem', marginBottom: '1rem' }}>
+                {activeWorkout.targetMuscle && `Target: ${activeWorkout.targetMuscle} • `}
+                {activeWorkout.difficulty && `Difficulty: ${activeWorkout.difficulty} • `}
+                {activeWorkout.exercises?.length || 0} Exercises
               </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0', fontSize: '0.88rem', lineHeight: 1.8 }}>
-                {memberWorkout.exercises?.slice(0, 4).map((ex, idx) => (
-                  <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', padding: '0.25rem 0' }}>
-                    <span>• {ex.name}</span>
-                    <strong style={{ color: 'var(--color-primary)' }}>{ex.sets} sets × {ex.reps}</strong>
-                  </li>
-                ))}
-              </ul>
-              {memberWorkout.exercises?.length > 4 && (
-                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-                  + {memberWorkout.exercises.length - 4} more exercises in full regimen
+
+              {activeWorkout.exercises && activeWorkout.exercises.length > 0 ? (
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0', fontSize: '0.88rem', lineHeight: 1.8 }}>
+                  {activeWorkout.exercises.slice(0, 4).map((ex, idx) => (
+                    <li
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid var(--color-border)',
+                        padding: '0.3rem 0',
+                      }}
+                    >
+                      <span>• {ex.name}</span>
+                      <strong style={{ color: 'var(--color-primary)' }}>
+                        {ex.sets} sets × {ex.reps}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>
+                  No specific exercise sets configured for this routine.
                 </p>
               )}
+
+              {activeWorkout.exercises && activeWorkout.exercises.length > 4 && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
+                  + {activeWorkout.exercises.length - 4} more exercises in full regimen
+                </p>
+              )}
+
               <div style={{ marginTop: '1.25rem' }}>
                 <Link to="/member/workouts" className="btn btn-primary btn-sm">
                   View Full Workout Details →
@@ -135,47 +207,49 @@ function MemberDashboard() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: '1.75rem 0', textAlign: 'center' }}>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1rem' }}>
-                {memberTrainer
-                  ? `Coach ${memberTrainer.name} has not yet assigned an active workout plan to your profile.`
+            <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                {trainer
+                  ? `Coach ${trainer.name} has not yet assigned a workout routine to your profile.`
                   : 'You do not have a personal trainer assigned yet. Speak with the front desk to arrange coaching.'}
               </p>
               <Link to="/member/workouts" className="btn btn-secondary btn-sm">
-                Check My Workouts Page
+                Check Workouts Page
               </Link>
             </div>
           )}
         </div>
 
         {/* Membership Validity Card */}
-        <div className="card">
+        <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header">
             <h3 className="card-title">Active Membership Overview</h3>
-            <span className={`badge ${activeMember?.status === 'Active' ? 'badge-green' : 'badge-danger'}`}>
-              {activeMember?.plan || 'Membership'}
+            <span className={`badge ${membership?.status === 'Active' ? 'badge-green' : 'badge-gray'}`}>
+              {membership?.status || 'Inactive'}
             </span>
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Plan Tier:</span>
-              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.plan}</strong>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div className="flex-between" style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>Plan Tier:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{membership?.plan || 'None Assigned'}</strong>
             </div>
-            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Joined Date:</span>
-              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.joinedDate || '15 Aug 2026'}</strong>
+            <div className="flex-between" style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>Start Date:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{formatDate(membership?.startDate || membership?.joinDate)}</strong>
             </div>
-            <div className="flex-between" style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--color-border)' }}>
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Valid Until:</span>
-              <strong style={{ fontSize: '0.9rem' }}>{activeMember?.expiryDate || '31 Oct 2026'}</strong>
+            <div className="flex-between" style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--color-border)' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>Valid Until:</span>
+              <strong style={{ fontSize: '0.9rem' }}>{formatDate(membership?.endDate)}</strong>
             </div>
-            <div className="flex-between" style={{ padding: '0.4rem 0' }}>
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Personal Coach:</span>
-              <strong style={{ fontSize: '0.9rem', color: memberTrainer ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
-                {memberTrainer ? memberTrainer.name : 'None Assigned'}
+            <div className="flex-between" style={{ padding: '0.5rem 0' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>Personal Coach:</span>
+              <strong style={{ fontSize: '0.9rem', color: trainer ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
+                {trainer ? trainer.name : 'None Assigned'}
               </strong>
             </div>
           </div>
+
           <Link to="/member/membership" className="btn btn-secondary btn-sm">
             View Membership Benefits →
           </Link>

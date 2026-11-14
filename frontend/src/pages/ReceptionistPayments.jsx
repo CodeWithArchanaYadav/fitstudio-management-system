@@ -1,9 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+
+/** Format ISO timestamp to date & time string */
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } catch {
+    return iso;
+  }
+}
 
 /**
  * ReceptionistPayments Page
  * Front Desk Billing, Fee Collections & Invoicing.
+ * Connected to backend /api/payments and /api/members.
  * Accessible at /receptionist/payments under DashboardLayout.
  */
 function ReceptionistPayments() {
@@ -11,6 +23,9 @@ function ReceptionistPayments() {
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [payments, setPayments] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     memberId: '',
@@ -20,41 +35,41 @@ function ReceptionistPayments() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // Baseline transactions (development preview data)
-  const [transactions, setTransactions] = useState([
-    {
-      invoiceId: 'INV-2026-1042',
-      member: 'Rahul Sharma (MEM-1001)',
-      amount: 3000,
-      method: 'UPI',
-      date: '01 Oct 2026, 10:30 AM',
-      description: 'Standard Pro Plan 30-Day renewal fee',
-      status: 'Paid',
-    },
-    {
-      invoiceId: 'INV-2026-1043',
-      member: 'Priya Patel (MEM-1002)',
-      amount: 5000,
-      method: 'Card',
-      date: '15 Sep 2026, 04:15 PM',
-      description: 'Premium Elite Plan 30-Day pass',
-      status: 'Paid',
-    },
-    {
-      invoiceId: 'INV-2026-1044',
-      member: 'Amit Verma (MEM-1003)',
-      amount: 1500,
-      method: 'Cash',
-      date: '10 Jul 2026, 11:00 AM',
-      description: 'Basic Gym Plan 30-Day pass',
-      status: 'Paid',
-    },
-  ]);
+  const loadAll = useCallback(async () => {
+    const [paymentsRes, membersRes] = await Promise.all([
+      api.getPayments(),
+      api.getMembers(),
+    ]);
+
+    if (paymentsRes.success && Array.isArray(paymentsRes.data)) {
+      setPayments(paymentsRes.data);
+    } else if (paymentsRes.status === 0) {
+      setNotice({ type: 'error', text: 'Payment service is currently unavailable. Ensure the backend is running.' });
+    }
+
+    if (membersRes.success && Array.isArray(membersRes.data)) {
+      setMembers(membersRes.data);
+    }
+
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const getMemberDisplayName = (memberId) => {
+    const m = members.find((x) => x.id === memberId || String(x.id) === String(memberId));
+    if (m) {
+      return `${m.name || m.fullName} (MEM-${m.id})`;
+    }
+    return `Member #${memberId}`;
+  };
 
   const validate = () => {
     const errs = {};
-    if (!formData.memberId.trim()) {
-      errs.memberId = 'Member name or ID is required.';
+    if (!formData.memberId) {
+      errs.memberId = 'Please select a member.';
     }
     const amt = Number(formData.amount);
     if (!formData.amount || isNaN(amt) || amt <= 0) {
@@ -71,59 +86,40 @@ function ReceptionistPayments() {
     setIsSubmitting(true);
     setNotice({ type: '', text: '' });
 
-    const newTx = {
-      invoiceId: `INV-2026-${Math.floor(1050 + Math.random() * 500)}`,
-      member: formData.memberId.trim(),
+    const payload = {
+      memberId: Number(formData.memberId),
       amount: Number(formData.amount),
-      method: formData.paymentMethod,
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      description: formData.notes.trim() || 'Front desk walk-in collection',
-      status: 'Recorded',
+      paymentMethod: formData.paymentMethod,
+      notes: formData.notes.trim() || undefined,
     };
 
-    try {
-      const res = await api.recordPayment({
-        memberId: formData.memberId.trim(),
-        amount: Number(formData.amount),
-        paymentMethod: formData.paymentMethod,
-        notes: formData.notes.trim(),
-      });
+    const res = await api.recordPayment(payload);
+    setIsSubmitting(false);
 
-      if (res.success) {
-        setTransactions([newTx, ...transactions]);
-        setNotice({
-          type: 'info',
-          text: `Payment entry recorded for ${formData.memberId} (₹${formData.amount}).`,
-        });
-      } else {
-        // Frontend development preview
-        setTransactions([newTx, ...transactions]);
-        setNotice({
-          type: 'info',
-          text: `Payment entry recorded locally for ${formData.memberId} (₹${Number(formData.amount).toLocaleString('en-IN')} via ${formData.paymentMethod}). Frontend prototype mode — live payment gateway integration will be handled by Spring Boot.`,
-        });
-      }
-      setFormData({ memberId: '', amount: '', paymentMethod: 'Cash', notes: '' });
-      setShowPaymentForm(false);
-    } catch {
-      setTransactions([newTx, ...transactions]);
+    if (res.success) {
       setNotice({
         type: 'info',
-        text: `Payment entry recorded locally for ${formData.memberId} (₹${Number(formData.amount).toLocaleString('en-IN')}).`,
+        text: `Payment of ₹${Number(formData.amount).toLocaleString('en-IN')} recorded successfully (Invoice: ${res.data.invoiceNumber}).`,
       });
       setFormData({ memberId: '', amount: '', paymentMethod: 'Cash', notes: '' });
       setShowPaymentForm(false);
-    } finally {
-      setIsSubmitting(false);
+      loadAll();
+    } else {
+      setNotice({
+        type: 'error',
+        text: res.error || 'Failed to record payment.',
+      });
     }
   };
 
-  const filteredTransactions = transactions.filter(
-    (t) =>
-      t.member.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.invoiceId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.method.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const q = searchQuery.toLowerCase().trim();
+  const filteredPayments = payments.filter((p) => {
+    const memberName = getMemberDisplayName(p.memberId).toLowerCase();
+    const inv = (p.invoiceNumber || '').toLowerCase();
+    const method = (p.paymentMethod || '').toLowerCase();
+    const notes = (p.notes || '').toLowerCase();
+    return !q || memberName.includes(q) || inv.includes(q) || method.includes(q) || notes.includes(q);
+  });
 
   return (
     <div>
@@ -143,6 +139,7 @@ function ReceptionistPayments() {
             setShowPaymentForm(!showPaymentForm);
             setNotice({ type: '', text: '' });
           }}
+          disabled={members.length === 0}
         >
           {showPaymentForm ? 'Close Payment Form' : '+ Record Walk-In Payment'}
         </button>
@@ -164,7 +161,7 @@ function ReceptionistPayments() {
             <div>
               <h2 className="card-title">Record Member Payment & Generate Receipt</h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                Front desk fee intake in Indian Rupees (₹). Records are held in frontend preview state.
+                Front desk fee intake in Indian Rupees (₹) saved to backend database records.
               </p>
             </div>
           </div>
@@ -172,18 +169,23 @@ function ReceptionistPayments() {
           <form onSubmit={handlePaymentSubmit} noValidate>
             <div className="grid-3">
               <div className="form-group">
-                <label className="form-label">Member Name or ID *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Rahul Sharma or MEM-1001"
+                <label className="form-label">Select Member *</label>
+                <select
+                  className="form-select"
                   value={formData.memberId}
                   onChange={(e) => {
                     setFormData({ ...formData, memberId: e.target.value });
                     if (formErrors.memberId) setFormErrors({ ...formErrors, memberId: '' });
                   }}
                   disabled={isSubmitting}
-                />
+                >
+                  <option value="">Select registered member…</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name || m.fullName} (MEM-{m.id}) {m.plan ? `— ${m.plan}` : ''}
+                    </option>
+                  ))}
+                </select>
                 {formErrors.memberId && <div className="form-error">{formErrors.memberId}</div>}
               </div>
 
@@ -284,26 +286,30 @@ function ReceptionistPayments() {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((t) => (
-                  <tr key={t.invoiceId}>
-                    <td style={{ fontWeight: 600 }}>{t.invoiceId}</td>
-                    <td style={{ fontWeight: 500 }}>{t.member}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{t.description}</td>
+              {filteredPayments.length > 0 ? (
+                filteredPayments.map((p) => (
+                  <tr key={p.id || p.invoiceNumber}>
+                    <td style={{ fontWeight: 600 }}>{p.invoiceNumber}</td>
+                    <td style={{ fontWeight: 500 }}>{getMemberDisplayName(p.memberId)}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{p.notes || 'Membership Fee'}</td>
                     <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                      ₹{t.amount.toLocaleString('en-IN')}
+                      ₹{Number(p.amount).toLocaleString('en-IN')}
                     </td>
-                    <td>{t.method}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{t.date}</td>
+                    <td>{p.paymentMethod}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{formatDateTime(p.paymentDate)}</td>
                     <td>
-                      <span className="badge badge-green">{t.status}</span>
+                      <span className="badge badge-green">{p.status || 'Paid'}</span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No payment records match "{searchQuery}".
+                    {loading
+                      ? 'Loading payment records…'
+                      : searchQuery
+                      ? `No payment records match "${searchQuery}".`
+                      : 'No payments recorded yet. Use the Record Walk-In Payment form to log receipts.'}
                   </td>
                 </tr>
               )}

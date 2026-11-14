@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { getStoredPlans } from '../services/plansData';
 
 /**
  * AdminMembers Page
@@ -8,16 +7,20 @@ import { getStoredPlans } from '../services/plansData';
  * Accessible at /admin/members under DashboardLayout.
  */
 function AdminMembers() {
-  // Members come from the backend (real DB ids), not from localStorage.
+  const [statusNotice, setStatusNotice] = useState({ type: '', text: '' });
   const [members, setMembers] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadMembers = useCallback(async () => {
-    const res = await api.getMembers();
+    const [res, pRes] = await Promise.all([api.getMembers(), api.getPlans()]);
     if (res.success) {
       setMembers(Array.isArray(res.data) ? res.data : []);
     } else {
       setStatusNotice({ type: 'error', text: res.error || 'Could not load members from the server.' });
+    }
+    if (pRes.success && Array.isArray(pRes.data)) {
+      setPlans(pRes.data.filter((p) => p.status === 'Active'));
     }
     setLoading(false);
   }, []);
@@ -38,10 +41,9 @@ function AdminMembers() {
     password: '',
   });
   const [formErrors, setFormErrors] = useState({});
-  const [statusNotice, setStatusNotice] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const activePlans = getStoredPlans().filter((p) => p.status === 'Active');
+  const activePlans = plans;
 
   const validate = () => {
     const errs = {};

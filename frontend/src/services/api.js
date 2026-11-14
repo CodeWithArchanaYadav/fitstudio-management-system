@@ -10,7 +10,7 @@
  *   Authorization: Bearer <token>
  */
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:6967/api').replace(/\/$/, '');
+const API_BASE_URL = ((typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || 'http://localhost:6967/api').replace(/\/$/, '');
 const TOKEN_KEY = 'fitstudio_token';
 const USER_KEY = 'fitstudio_user';
 const TIMEOUT_MS = 10000;
@@ -19,24 +19,112 @@ const TIMEOUT_MS = 10000;
 // Session helpers (token + logged-in user)
 // ---------------------------------------------------------------------------
 
+export const SESSION_EVENT = 'fitstudio_session_change';
+export const VALID_ROLES = ['ADMIN', 'RECEPTIONIST', 'TRAINER', 'MEMBER'];
+
+function notifySessionChange() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SESSION_EVENT));
+  }
+}
+
+/**
+ * Safely parses the JSON payload from a JWT token.
+ * Returns null if the token is malformed or invalid.
+ */
+export function parseJwt(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.trim().split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const jsonStr =
+      typeof atob === 'function'
+        ? decodeURIComponent(
+            atob(padded)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          )
+        : Buffer.from(padded, 'base64').toString('utf8');
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Checks whether a JWT is expired based on its 'exp' claim.
+ * Returns true if expired or invalid; false if still valid.
+ */
+export function isJwtExpired(token) {
+  const payload = parseJwt(token);
+  if (!payload) return true;
+  if (!payload.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+}
+
 export const session = {
   getToken: () => localStorage.getItem(TOKEN_KEY),
-  getUser: () => {
+  getRawUser: () => {
     try {
       return JSON.parse(localStorage.getItem(USER_KEY) || 'null');
     } catch {
       return null;
     }
   },
+  getUser: () => session.getAuthenticatedUser(),
   save: ({ token, email, role, name }) => {
     localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify({ email, role, name }));
+    const normalizedRole = (role || '').toUpperCase();
+    localStorage.setItem(USER_KEY, JSON.stringify({ email, role: normalizedRole, name }));
+    notifySessionChange();
   },
   clear: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    notifySessionChange();
   },
-  isLoggedIn: () => !!localStorage.getItem(TOKEN_KEY),
+  /**
+   * Validates the active authentication session:
+   * 1. Checks that a token exists and is a valid, unexpired JWT.
+   * 2. Checks that a user profile exists with a recognized role.
+   * If token is expired or corrupt, automatically cleans storage and returns null.
+   */
+  getAuthenticatedUser: () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+
+    const payload = parseJwt(token);
+    if (!payload || isJwtExpired(token)) {
+      session.clear();
+      return null;
+    }
+
+    let user = null;
+    try {
+      user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+    } catch {
+      user = null;
+    }
+
+    const role = (user?.role || payload?.role || '').toUpperCase();
+    if (!VALID_ROLES.includes(role)) {
+      session.clear();
+      return null;
+    }
+
+    return {
+      ...(user || {}),
+      email: user?.email || payload?.sub || '',
+      role,
+      name: user?.name || (role ? role.charAt(0) + role.slice(1).toLowerCase() : 'User'),
+    };
+  },
+  isLoggedIn: () => !!session.getAuthenticatedUser(),
+  isAuthenticated: () => !!session.getAuthenticatedUser(),
 };
 
 /** Where each backend role lands after login. */
@@ -242,9 +330,10 @@ export const api = {
   getMyTrainer: () => request('/me/trainer'),
   getMyWorkouts: () => request('/me/workouts'),
 
-  // ----- Payments: not part of the backend yet ----------------------------
-  getPayments: async () => ({ success: false, status: 501, error: 'Payments are not available in the backend yet.' }),
-  recordPayment: async () => ({ success: false, status: 501, error: 'Payments are not available in the backend yet.' }),
+  // ----- Payments (connected to backend /api/payments) --------------------
+  getPayments: () => request('/payments'),
+  getPaymentsByMember: (memberId) => request(`/payments/member/${memberId}`),
+  recordPayment: (payment) => request('/payments', json('POST', payment)),
 };
 
 export default api;
