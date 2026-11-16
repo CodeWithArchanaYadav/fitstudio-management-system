@@ -16,25 +16,35 @@ function AdminDashboard() {
     activeTrainers: 0,
     plansCount: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [recentMembers, setRecentMembers] = useState([]);
 
-  // Load live numbers from the backend
+  // Refresh dashboard stats and the newest member registrations together.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const res = await api.getDashboardStats();
-      if (!cancelled) {
-        if (res.success && res.data) {
-          setStats((prev) => ({ ...prev, ...res.data }));
-        }
-        setLoading(false);
+      const [statsRes, membersRes] = await Promise.all([
+        api.getDashboardStats(),
+        api.getMembers(),
+      ]);
+      if (cancelled) return;
+      if (statsRes.success && statsRes.data) {
+        setStats((prev) => ({ ...prev, ...statsRes.data }));
+      }
+      if (membersRes.success && Array.isArray(membersRes.data)) {
+        const newestFirst = [...membersRes.data].sort((a, b) => {
+          const dateDifference = new Date(b.joinedDate || 0) - new Date(a.joinedDate || 0);
+          return dateDifference || Number(b.id) - Number(a.id);
+        });
+        setRecentMembers(newestFirst.slice(0, 5));
       }
     };
     load();
-    const timer = setInterval(load, 15000);
+    const timer = setInterval(load, 10000);
+    window.addEventListener('focus', load);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      window.removeEventListener('focus', load);
     };
   }, []);
 
@@ -73,55 +83,46 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid-2 mb-3">
-        {/* Quick Administrative Tasks */}
-        <div className="card" style={{ marginBottom: 0 }}>
-          <div className="card-header">
-            <h2 className="card-title">Administrative Modules</h2>
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-            Direct access to core gym management operations:
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <Link
-              to="/admin/members"
-              className="btn btn-secondary"
-              style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}
-            >
-              <div>
-                <div style={{ fontWeight: 600 }}>Member Directory</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
-                  Register members, assign plans, and update profiles
-                </div>
-              </div>
-            </Link>
-            <Link
-              to="/admin/trainers"
-              className="btn btn-secondary"
-              style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}
-            >
-              <div>
-                <div style={{ fontWeight: 600 }}>Staff & Trainer Management</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
-                  Create staff accounts, assign trainers, and manage facility shifts
-                </div>
-              </div>
-            </Link>
-            <Link
-              to="/admin/plans"
-              className="btn btn-secondary"
-              style={{ textAlign: 'left', justifyContent: 'flex-start', padding: '0.85rem 1rem' }}
-            >
-              <div>
-                <div style={{ fontWeight: 600 }}>Membership Plans & Pricing</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
-                  Configure tiers, subscription duration, pricing (₹), and benefits
-                </div>
-              </div>
-            </Link>
-          </div>
+      <div className="card mb-3">
+        <div className="card-header">
+          <h2 className="card-title">Recently Registered Members</h2>
+          <Link to="/admin/members" className="btn btn-secondary btn-sm">View all members</Link>
         </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Member ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th>Joined</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentMembers.length ? recentMembers.map((member) => (
+                <tr key={member.id}>
+                  <td>{member.id}</td>
+                  <td>{member.fullName || member.name}</td>
+                  <td>{member.email}</td>
+                  <td>{member.plan || '—'}</td>
+                  <td>{member.joinedDate || '—'}</td>
+                  <td>{member.status}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    No members registered yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
+      <div className="grid-2">
         {/* Facility Status Card */}
         <div className="card" style={{ marginBottom: 0 }}>
           <div className="card-header">

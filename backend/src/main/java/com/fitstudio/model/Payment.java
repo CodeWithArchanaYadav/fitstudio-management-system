@@ -29,8 +29,8 @@ public class Payment {
     private BigDecimal amount;
 
     @NotNull
-    @Pattern(regexp = "Cash|Card|UPI",
-            message = "Payment method must be Cash, Card or UPI")
+    @Pattern(regexp = "Cash|Card|UPI|Razorpay|Online",
+            message = "Payment method must be Cash, Card, UPI, Razorpay, or Online")
     @Column(nullable = false, length = 20)
     private String paymentMethod;
 
@@ -43,10 +43,23 @@ public class Payment {
     @Column(nullable = false, length = 20)
     private String status = "Paid";
 
+    // Razorpay / Online Payment Gateway Fields
+    @Column(length = 100)
+    private String razorpayOrderId;
+
+    @Column(length = 100)
+    private String razorpayPaymentId;
+
+    @Column(length = 255)
+    private String razorpaySignature;
+
     @PrePersist
     public void beforeSave() {
         if (paymentDate == null) {
             paymentDate = LocalDateTime.now();
+        }
+        if (invoiceNumber == null || invoiceNumber.isBlank()) {
+            invoiceNumber = "INV-" + System.currentTimeMillis();
         }
     }
 
@@ -114,5 +127,29 @@ public class Payment {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getRazorpayOrderId() {
+        return razorpayOrderId;
+    }
+
+    public void setRazorpayOrderId(String razorpayOrderId) {
+        this.razorpayOrderId = razorpayOrderId;
+    }
+
+    public String getRazorpayPaymentId() {
+        return razorpayPaymentId;
+    }
+
+    public void setRazorpayPaymentId(String razorpayPaymentId) {
+        this.razorpayPaymentId = razorpayPaymentId;
+    }
+
+    public String getRazorpaySignature() {
+        return razorpaySignature;
+    }
+
+    public void setRazorpaySignature(String razorpaySignature) {
+        this.razorpaySignature = razorpaySignature;
     }
 }

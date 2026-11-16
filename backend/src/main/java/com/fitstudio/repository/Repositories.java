@@ -65,6 +65,8 @@ public final class Repositories {
 
         List<WorkoutRoutine> findByTrainerId(Long trainerId);
 
+        long countByTrainerId(Long trainerId);
+
         void deleteByTrainerId(Long trainerId);
 
         @Query("select r from WorkoutRoutine r where :memberId member of r.memberIds")
@@ -76,6 +78,9 @@ public final class Repositories {
             extends JpaRepository<TrainingSession, Long> {
 
         List<TrainingSession> findByTrainerIdOrderBySessionTime(Long trainerId);
+
+        List<TrainingSession> findByTrainerIdAndSessionTime(
+                Long trainerId, LocalDateTime sessionTime);
 
         List<TrainingSession> findByTrainerIdAndSessionTimeBetweenOrderBySessionTime(
                 Long trainerId, LocalDateTime from, LocalDateTime to);
