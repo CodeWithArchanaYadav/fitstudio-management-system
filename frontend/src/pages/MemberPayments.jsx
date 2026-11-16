@@ -1,44 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { api } from '../services/api';
+
+/** Helper to format ISO date string */
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } catch {
+    return iso;
+  }
+}
 
 /**
  * MemberPayments Page
  * Dedicated view of the member's payment transactions, receipts, and invoices.
- * Shows prices in Indian Rupees (₹) and outstanding dues.
+ * Shows prices in Indian Rupees (₹).
+ * Connected to live backend /api/payments.
  * Accessible at /member/payments under DashboardLayout.
  */
 function MemberPayments() {
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [downloadNotice, setDownloadNotice] = useState('');
+  const [errorNotice, setErrorNotice] = useState('');
 
-  const payments = [
-    {
-      invoiceId: 'INV-2026-1042',
-      date: '01 Oct 2026',
-      description: 'Standard Pro Plan (30 Days Renewal)',
-      amount: 3000,
-      method: 'UPI',
-      status: 'Paid',
-    },
-    {
-      invoiceId: 'INV-2026-0914',
-      date: '01 Sep 2026',
-      description: 'Standard Pro Plan (30 Days Renewal)',
-      amount: 3000,
-      method: 'UPI',
-      status: 'Paid',
-    },
-    {
-      invoiceId: 'INV-2026-0815',
-      date: '15 Aug 2026',
-      description: 'FitStudio Registration Fee + Standard Pro Plan (30 Days)',
-      amount: 3500,
-      method: 'Debit Card (POS)',
-      status: 'Paid',
-    },
-  ];
+  useEffect(() => {
+    let cancelled = false;
 
-  const handleDownload = (invoiceId) => {
+    const loadPayments = async () => {
+      const res = await api.getPayments();
+      if (cancelled) return;
+
+      if (res.success && Array.isArray(res.data)) {
+        setPayments(res.data);
+      } else if (res.status === 0) {
+        setErrorNotice('Cannot connect to payment service. Please ensure the backend server is active.');
+      }
+      setLoading(false);
+    };
+
+    loadPayments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleDownload = (invoiceNumber) => {
     setDownloadNotice(
-      `Receipt ${invoiceId} preview generated. PDF export will be enabled when connected to receipt services.`
+      `Receipt ${invoiceNumber} preview generated. PDF export will be enabled when connected to receipt services.`
     );
   };
 
@@ -55,67 +67,87 @@ function MemberPayments() {
         </div>
       </div>
 
+      {errorNotice && (
+        <div className="notice-box notice-error mb-3">
+          {errorNotice}
+        </div>
+      )}
+
       {downloadNotice && (
         <div className="notice-box notice-warning mb-3">
           {downloadNotice}
         </div>
       )}
 
-      {/* Financial Summary Cards */}
-      <div className="grid-3 mb-3">
-        <div className="stat-card">
-          <div className="stat-label">Outstanding Balance</div>
-          <div className="stat-value" style={{ color: 'var(--color-primary)' }}>₹0</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Transactions</div>
-          <div className="stat-value">{payments.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Lifetime Payments</div>
-          <div className="stat-value">₹9,500</div>
+      {/* Member Navigation Tabs */}
+      <div className="card mb-3" style={{ padding: '0.85rem 1.25rem' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: '0.5rem' }}>
+            Member Pages:
+          </span>
+          <Link to="/member/dashboard" className="btn btn-secondary btn-sm">
+            Dashboard
+          </Link>
+          <Link to="/member/profile" className="btn btn-secondary btn-sm">
+            My Profile
+          </Link>
+          <Link to="/member/workouts" className="btn btn-secondary btn-sm">
+            My Workouts
+          </Link>
+          <Link to="/member/membership" className="btn btn-secondary btn-sm">
+            My Membership
+          </Link>
+          <Link to="/member/payments" className="btn btn-primary btn-sm">
+            My Payments
+          </Link>
         </div>
       </div>
 
-      {/* Transactions Table */}
+      {/* Transactions Table Card */}
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Billing Invoices & Receipts</h2>
+          <div>
+            <h2 className="card-title">Billing Transactions</h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
+              Official record of payments processed in Indian Rupees (₹)
+            </p>
+          </div>
         </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
               <tr>
                 <th>Invoice #</th>
-                <th>Payment Date</th>
-                <th>Plan Description</th>
+                <th>Date & Time</th>
+                <th>Description</th>
                 <th>Amount (₹)</th>
-                <th>Payment Method</th>
+                <th>Payment Mode</th>
                 <th>Status</th>
                 <th>Receipt</th>
               </tr>
             </thead>
             <tbody>
               {payments.length > 0 ? (
-                payments.map((item) => (
-                  <tr key={item.invoiceId}>
-                    <td style={{ fontWeight: 600 }}>{item.invoiceId}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{item.date}</td>
-                    <td>{item.description}</td>
+                payments.map((pay) => (
+                  <tr key={pay.id || pay.invoiceNumber}>
+                    <td style={{ fontWeight: 600 }}>{pay.invoiceNumber}</td>
+                    <td style={{ color: 'var(--color-text-muted)' }}>{formatDateTime(pay.paymentDate)}</td>
+                    <td>{pay.notes || 'Membership Fee'}</td>
                     <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                      ₹{item.amount.toLocaleString('en-IN')}
+                      ₹{Number(pay.amount).toLocaleString('en-IN')}
                     </td>
-                    <td>{item.method}</td>
+                    <td>{pay.paymentMethod}</td>
                     <td>
-                      <span className="badge badge-green">{item.status}</span>
+                      <span className="badge badge-green">{pay.status || 'Paid'}</span>
                     </td>
                     <td>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        onClick={() => handleDownload(item.invoiceId)}
+                        onClick={() => handleDownload(pay.invoiceNumber)}
                       >
-                        📄 Download
+                        Receipt
                       </button>
                     </td>
                   </tr>
@@ -123,7 +155,7 @@ function MemberPayments() {
               ) : (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No payment history found.
+                    {loading ? 'Loading payment transactions…' : 'No payment records found for your account.'}
                   </td>
                 </tr>
               )}

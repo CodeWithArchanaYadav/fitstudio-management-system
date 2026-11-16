@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { api, ROLE_HOME } from '../services/api';
+import { api, ROLE_HOME, session } from '../services/api';
 
 /**
  * Login Page
@@ -16,6 +16,12 @@ function Login() {
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // If already authenticated with a valid session, redirect directly to role dashboard
+  const authUser = session.getAuthenticatedUser();
+  if (authUser) {
+    return <Navigate to={ROLE_HOME[authUser.role] || '/'} replace />;
+  }
 
   const validate = () => {
     const newErrors = {};
@@ -50,7 +56,8 @@ function Login() {
 
       if (response.success) {
         // Token is already saved by api.login(); go to the dashboard for this role
-        navigate(ROLE_HOME[response.data.role] || '/', { replace: true });
+        const role = (response.data?.role || '').toUpperCase();
+        navigate(ROLE_HOME[role] || '/', { replace: true });
         return;
       }
 

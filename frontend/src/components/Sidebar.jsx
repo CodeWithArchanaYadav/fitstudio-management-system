@@ -3,13 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 
 /**
  * Sidebar Component
- * Provides clean, role-specific navigation for FitStudio dashboard views.
+ * Provides fixed, role-specific navigation for FitStudio dashboard views.
  * Supports Admin, Receptionist, Trainer, and Member with accurate active-route highlighting.
+ * Stays fixed while main dashboard content scrolls independently.
  */
-function Sidebar({ role, isMobileOpen, onCloseMobile }) {
+function Sidebar({ role, isMobileOpen, onCloseMobile, onLogout }) {
   const location = useLocation();
 
-  // Define navigation items based on current role
+  // Define navigation items based on current role (preserving all existing links)
   const getNavItems = () => {
     switch (role) {
       case 'admin':
@@ -55,35 +56,47 @@ function Sidebar({ role, isMobileOpen, onCloseMobile }) {
     }
   };
 
+  const handleExit = (e) => {
+    handleLinkClick();
+    if (onLogout) {
+      e.preventDefault();
+      onLogout();
+    }
+  };
+
   return (
-    <aside className={`sidebar ${isMobileOpen ? 'sidebar-open-mobile' : 'sidebar-hidden-mobile'}`}>
-      <div className="sidebar-title">
-        {role ? `${role.toUpperCase()} MENU` : 'NAVIGATION'}
+    <aside className={`sidebar ${isMobileOpen ? 'sidebar-open-mobile' : ''}`}>
+      <div>
+        <div className="sidebar-title">
+          {role ? `${role.toUpperCase()} MENU` : 'NAVIGATION'}
+        </div>
+
+        <ul className="sidebar-nav">
+          {navItems.map((item) => {
+            const isActive =
+              location.pathname === item.path ||
+              location.pathname.startsWith(`${item.path}/`);
+            return (
+              <li key={item.id}>
+                <Link
+                  to={item.path}
+                  className={`sidebar-link ${isActive ? 'active' : ''}`}
+                  onClick={handleLinkClick}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
-      <ul className="sidebar-nav">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
-          return (
-            <li key={item.id}>
-              <Link
-                to={item.path}
-                className={`sidebar-link ${isActive ? 'active' : ''}`}
-                onClick={handleLinkClick}
-              >
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-
-      <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
+      <div className="sidebar-footer">
         <Link
           to="/login"
           className="sidebar-link"
           style={{ color: 'var(--color-danger)' }}
-          onClick={handleLinkClick}
+          onClick={handleExit}
         >
           ← Exit to Login
         </Link>

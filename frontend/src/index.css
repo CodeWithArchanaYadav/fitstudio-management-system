@@ -4,21 +4,21 @@
    ========================================================================== */
 
 :root {
-  --color-primary: #16a34a;        /* Professional Emerald Green */
-  --color-primary-hover: #15803d;
-  --color-primary-light: #dcfce7;
-  --color-primary-dark: #14532d;
+  --color-primary: #2563eb;        /* Professional SaaS Blue */
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: #eff6ff;
+  --color-primary-dark: #1e40af;
 
-  --color-bg: #f8fafc;              /* Light gray background */
+  --color-bg: #f8fafc;              /* Slate-50 background */
   --color-surface: #ffffff;         /* Pure white surface */
   --color-surface-hover: #f1f5f9;
 
-  --color-text: #0f172a;            /* Dark text */
-  --color-text-muted: #64748b;      /* Secondary text */
-  --color-text-light: #94a3b8;
+  --color-text: #0f172a;            /* Slate-900 dark text */
+  --color-text-muted: #64748b;      /* Slate-500 secondary text */
+  --color-text-light: #94a3b8;      /* Slate-400 light text */
 
-  --color-border: #e2e8f0;          /* Subtle border */
-  --color-border-dark: #cbd5e1;
+  --color-border: #e2e8f0;          /* Slate-200 subtle border */
+  --color-border-dark: #cbd5e1;     /* Slate-300 darker border */
 
   --color-danger: #dc2626;
   --color-danger-light: #fee2e2;
@@ -28,7 +28,7 @@
   --color-info-light: #e0f2fe;
 
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --sidebar-width: 250px;
+  --sidebar-width: 256px;
 }
 
 /* Reset and Base Styles */
@@ -373,25 +373,164 @@ a {
 .mb-3 { margin-bottom: 1.5rem; }
 
 /* Dashboard Layout */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-bg);
+}
+
+.dashboard-topbar {
+  height: 64px;
+  min-height: 64px;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 40;
+  flex-shrink: 0;
+}
+
+.dashboard-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mobile-header-toggle {
+  display: none;
+}
+
+.dashboard-brand {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-brand span {
+  color: var(--color-primary);
+}
+
+.dashboard-role-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border: 1px solid #bfdbfe;
+}
+
+.dashboard-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-user-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dashboard-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bfdbfe;
+  flex-shrink: 0;
+}
+
+.dashboard-user-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.dashboard-user-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.dashboard-user-role {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.dashboard-user-email {
+  font-size: 0.72rem;
+  color: var(--color-text-light);
+  white-space: nowrap;
+}
+
+.dashboard-logout-btn {
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dashboard-logout-btn:hover {
+  background-color: var(--color-danger-light);
+  border-color: #fca5a5;
+  color: var(--color-danger);
+}
+
 .dashboard-layout {
   display: flex;
-  min-height: calc(100vh - 65px);
+  flex: 1;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+  position: relative;
 }
 
 .sidebar {
   width: var(--sidebar-width);
   background-color: var(--color-surface);
   border-right: 1px solid var(--color-border);
-  padding: 1.5rem 1rem;
+  padding: 1.25rem 0.85rem;
   flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .sidebar-title {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-bottom: 0.75rem;
   padding-left: 0.75rem;
 }
@@ -406,16 +545,18 @@ a {
 .sidebar-link {
   display: flex;
   align-items: center;
-  padding: 0.65rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 6px;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--color-text-muted);
   transition: all 0.15s ease;
+  border-left: 3px solid transparent;
 }
 
 .sidebar-link:hover {
-  background-color: #f1f5f9;
+  background-color: var(--color-surface-hover);
   color: var(--color-text);
 }
 
@@ -423,11 +564,21 @@ a {
   background-color: var(--color-primary-light);
   color: var(--color-primary-dark);
   font-weight: 600;
+  border-left-color: var(--color-primary);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .dashboard-main {
   flex: 1;
-  padding: 2rem;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2rem 2.5rem;
   background-color: var(--color-bg);
 }
 
@@ -436,9 +587,10 @@ a {
 }
 
 .dashboard-header h1 {
-  font-size: 1.6rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .dashboard-header p {
@@ -452,37 +604,83 @@ a {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 1.25rem;
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--color-border-dark);
 }
 
 .stat-label {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-text-muted);
-  margin-bottom: 0.35rem;
-  font-weight: 500;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--color-text);
+  line-height: 1.2;
 }
 
 /* Responsive Breakpoints */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .dashboard-main {
+    padding: 1.5rem;
+  }
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
-  .dashboard-layout {
-    flex-direction: column;
+  .dashboard-topbar {
+    padding: 0 1rem;
+  }
+
+  .dashboard-user-info {
+    display: none;
   }
 
   .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    padding: 1rem;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 100;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.sidebar-open-mobile {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.4);
+    z-index: 90;
+    backdrop-filter: blur(2px);
   }
 
   .dashboard-main {
-    padding: 1.25rem;
+    padding: 1.25rem 1rem;
   }
 
   .grid-2, .grid-3, .grid-4 {
@@ -491,14 +689,6 @@ a {
 
   .nav-links {
     gap: 0.75rem;
-  }
-
-  .mobile-sidebar-toggle {
-    display: inline-flex !important;
-  }
-
-  .sidebar-hidden-mobile {
-    display: none !important;
   }
 }
 

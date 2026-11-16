@@ -4,7 +4,8 @@ import api from '../services/api';
 
 /**
  * TrainerDashboard Page
- * Loads everything from GET /api/trainer/me/dashboard (profile, counts, client roster).
+ * Central overview for certified gym trainers.
+ * Loads live data from GET /api/trainer/me/dashboard (profile, counts, client roster).
  * Renders within the shared DashboardLayout.
  */
 function TrainerDashboard() {
@@ -40,7 +41,7 @@ function TrainerDashboard() {
       setFormError(res.error || 'Could not save coaching details.');
       return;
     }
-    // update the row locally so the table shows the new values immediately
+    // Update the row locally so the table shows the new values immediately
     setData((d) => ({
       ...d,
       clients: d.clients.map((x) =>
@@ -54,8 +55,11 @@ function TrainerDashboard() {
     let alive = true;
     api.getTrainerDashboard().then((res) => {
       if (!alive) return;
-      if (res.success) setData(res.data);
-      else setError(res.error || 'Could not load the dashboard.');
+      if (res.success) {
+        setData(res.data);
+      } else {
+        setError(res.error || 'Unable to load trainer dashboard. Please verify backend service.');
+      }
       setLoading(false);
     });
     return () => {
@@ -63,69 +67,114 @@ function TrainerDashboard() {
     };
   }, []);
 
-  if (loading) return <p style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Loading dashboard…</p>;
-  if (error) return <div className="card" style={{ padding: '1.5rem', color: 'var(--color-danger, #b91c1c)' }}>{error}</div>;
+  if (loading) {
+    return (
+      <div>
+        <header className="dashboard-header">
+          <h1>Trainer Dashboard</h1>
+          <p>Manage assigned client regimens, workout routines, and training sessions</p>
+        </header>
+        <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          Loading trainer dashboard data…
+        </div>
+      </div>
+    );
+  }
 
-  const trainer = data.trainer;
+  if (error || !data) {
+    return (
+      <div>
+        <header className="dashboard-header">
+          <h1>Trainer Dashboard</h1>
+          <p>Manage assigned client regimens, workout routines, and training sessions</p>
+        </header>
+        <div className="notice-box notice-error mb-3">
+          {error || 'Trainer dashboard information is currently unavailable.'}
+        </div>
+      </div>
+    );
+  }
+
+  const trainer = data.trainer || {};
   const clients = data.clients || [];
 
   return (
     <div>
-      <div className="card mb-3" style={{ padding: '0.75rem 1.25rem', backgroundColor: 'var(--color-surface)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Active Coach Overview:
-          </span>
-          <strong style={{ fontSize: '0.95rem', color: 'var(--color-primary)' }}>
-            {trainer.name} (STF-T{String(trainer.id).padStart(2, '0')})
-          </strong>
-          {trainer.specialization && (
-            <span className="badge badge-green" style={{ fontSize: '0.75rem' }}>{trainer.specialization}</span>
-          )}
+      <header className="dashboard-header">
+        <h1>Trainer Dashboard</h1>
+        <p>Manage assigned client regimens, workout routines, and training sessions</p>
+      </header>
+
+      {/* Trainer Profile Overview Card */}
+      <div className="card mb-3" style={{ padding: '1rem 1.25rem' }}>
+        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Coach Profile:
+            </span>
+            <strong style={{ fontSize: '0.98rem', color: 'var(--color-primary)' }}>
+              {trainer.name}
+            </strong>
+            {trainer.specialization && (
+              <span className="badge badge-blue">
+                {trainer.specialization}
+              </span>
+            )}
+            <span className="badge badge-green">
+              {trainer.status || 'Active'}
+            </span>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+            Facility Shift: <strong>{trainer.shift || 'General'}</strong>
+          </div>
         </div>
       </div>
 
-      <header className="dashboard-header">
-        <h1>Trainer Dashboard</h1>
-        <p>Welcome back, Coach {trainer.name}! Manage your client routines and training sessions.</p>
-      </header>
-
+      {/* Stat Cards */}
       <div className="grid-3 mb-3">
         <div className="stat-card">
           <div className="stat-label">Assigned Clients</div>
-          <div className="stat-value">{data.assignedClients}</div>
+          <div className="stat-value">{data.assignedClients ?? 0}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Active Workout Routines</div>
-          <div className="stat-value" style={{ color: 'var(--color-primary)' }}>{data.activeRoutines}</div>
+          <div className="stat-value" style={{ color: 'var(--color-primary)' }}>
+            {data.activeRoutines ?? 0}
+          </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Today&apos;s Sessions</div>
-          <div className="stat-value">{data.todaySessions}</div>
+          <div className="stat-label">Today's Sessions</div>
+          <div className="stat-value">{data.todaySessions ?? 0}</div>
         </div>
       </div>
 
+      {/* Training Management Quick Actions */}
       <div className="card mb-3">
         <div className="card-header">
           <h2 className="card-title">Training Management Actions</h2>
+          {data.clientsWithoutWorkout > 0 && (
+            <span className="badge badge-warning">
+              {data.clientsWithoutWorkout} {data.clientsWithoutWorkout === 1 ? 'Client needs a plan' : 'Clients need plans'}
+            </span>
+          )}
         </div>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-          Facility shift: <strong>{trainer.shift || 'General'}</strong>
-          {data.clientsWithoutWorkout > 0 && ` · ${data.clientsWithoutWorkout} client(s) still need a workout plan`}
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+          Quick shortcuts to client session schedules and prescribed exercise regimens:
         </p>
         <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
           <Link to="/trainer/members" className="btn btn-secondary">
-            👥 View Assigned Clients ({data.assignedClients})
+            View Assigned Clients ({data.assignedClients ?? 0})
           </Link>
           <Link to="/trainer/workouts" className="btn btn-primary">
-            🏋️ Manage Workout Plans ({data.activeRoutines})
+            Manage Workout Plans ({data.activeRoutines ?? 0})
           </Link>
         </div>
       </div>
 
+      {/* Client Coaching Roster */}
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Client Coaching Roster for {trainer.name}</h2>
+          <h2 className="card-title">Client Coaching Roster</h2>
           <span className="badge badge-blue">
             {clients.length} Assigned {clients.length === 1 ? 'Member' : 'Members'}
           </span>
@@ -156,7 +205,7 @@ function TrainerDashboard() {
                           type="text"
                           className="form-input"
                           maxLength={255}
-                          placeholder="e.g. Fat loss, Muscle gain"
+                          placeholder="e.g. Strength, Hypertrophy"
                           value={goalInput}
                           onChange={(e) => setGoalInput(e.target.value)}
                         />
@@ -190,19 +239,35 @@ function TrainerDashboard() {
                     <td>
                       {editingId === c.id ? (
                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                          <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={() => saveCoaching(c)}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            disabled={saving}
+                            onClick={() => saveCoaching(c)}
+                          >
                             {saving ? 'Saving…' : 'Save'}
                           </button>
-                          <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={() => setEditingId(null)}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={saving}
+                            onClick={() => setEditingId(null)}
+                          >
                             Cancel
                           </button>
                           {formError && (
-                            <span style={{ color: 'var(--color-danger, #b91c1c)', fontSize: '0.78rem', width: '100%' }}>{formError}</span>
+                            <span style={{ color: 'var(--color-danger)', fontSize: '0.78rem', width: '100%' }}>
+                              {formError}
+                            </span>
                           )}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEdit(c)}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => startEdit(c)}
+                          >
                             Set Goal
                           </button>
                           <Link to={`/trainer/workouts?memberId=${c.id}`} className="btn btn-secondary btn-sm">
@@ -216,7 +281,7 @@ function TrainerDashboard() {
               ) : (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No members are currently assigned to Coach {trainer.name}. When the admin assigns members, they will appear here.
+                    No members are currently assigned to your coaching roster. When gym administration assigns members, they will appear here.
                   </td>
                 </tr>
               )}

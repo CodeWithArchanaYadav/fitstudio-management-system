@@ -1,49 +1,46 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { useGymData, gymStore } from '../services/gymData';
 
 /**
  * ReceptionistTrainers Page
- * Front desk trainer management, coach directory, and member-to-trainer assignments.
+ * Front desk trainer directory, coach roster, and member-to-trainer assignments.
+ * Connected to backend /api/staff and /api/members.
  * Accessible at /receptionist/trainers under DashboardLayout.
  */
 function ReceptionistTrainers() {
-  const {
-    assignments,
-    addTrainer,
-    assignTrainerToMember,
-    removeAssignment,
-  } = useGymData();
-
   const [staff, setStaff] = useState([]);
   const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showAddTrainerForm, setShowAddTrainerForm] = useState(false);
   const [notice, setNotice] = useState({ type: '', text: '' });
   const [isSaving, setIsSaving] = useState(false);
 
-  // New trainer form (identical to Admin)
+  // New trainer form
   const emptyStaff = { name: '', email: '', phone: '', password: '' };
   const [trainerForm, setTrainerForm] = useState(emptyStaff);
 
-  // Trainer-to-member assignment form (identical to Admin)
+  // Trainer-to-member assignment form
   const [assignmentForm, setAssignmentForm] = useState({ memberId: '', trainerId: '' });
 
   const trainers = staff.filter((u) => u.role === 'TRAINER');
 
   const loadAll = useCallback(async () => {
-    const [staffRes, memberRes] = await Promise.all([api.getStaff(), api.getMembers()]);
-    if (staffRes.success && Array.isArray(staffRes.data) && staffRes.data.length > 0) {
+    const [staffRes, memberRes] = await Promise.all([
+      api.getStaff('TRAINER'),
+      api.getMembers(),
+    ]);
+
+    if (staffRes.success && Array.isArray(staffRes.data)) {
       setStaff(staffRes.data);
-    } else {
-      const localTrainers = gymStore.getTrainers();
-      setStaff(localTrainers.map((t) => ({ ...t, role: 'TRAINER' })));
+    } else if (staffRes.status === 0) {
+      setNotice({ type: 'error', text: 'Cannot reach backend server. Make sure Spring Boot is running on port 6967.' });
     }
-    if (memberRes.success && Array.isArray(memberRes.data) && memberRes.data.length > 0) {
+
+    if (memberRes.success && Array.isArray(memberRes.data)) {
       setMembers(memberRes.data);
-    } else {
-      const localMembers = gymStore.getMembers();
-      setMembers(localMembers.map((m) => ({ ...m, name: m.fullName })));
     }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -62,40 +59,33 @@ function ReceptionistTrainers() {
     }
 
     setIsSaving(true);
-    let createdTrainer = null;
-    try {
-      const res = await api.createStaff({
-        name: trainerForm.name.trim(),
-        email: trainerForm.email.trim(),
-        phone: trainerForm.phone.replace(/\D/g, ''),
-        password: trainerForm.password,
-        role: 'TRAINER',
-        status: 'Active',
-      });
-      if (res.success) {
-        createdTrainer = res.data;
-      }
-    } catch {
-      // offline fallback
-    }
+    setNotice({ type: '', text: '' });
 
-    // Keep shared gymStore in sync without storing plaintext passwords in localStorage
-    const newLocalTrainer = addTrainer({
+    const res = await api.createStaff({
       name: trainerForm.name.trim(),
       email: trainerForm.email.trim(),
-      phone: trainerForm.phone.trim() || '+91 98765 00000',
+      phone: trainerForm.phone.replace(/\D/g, ''),
+      password: trainerForm.password,
+      role: 'TRAINER',
+      status: 'Active',
     });
 
     setIsSaving(false);
-    setTrainerForm(emptyStaff);
-    setShowAddTrainerForm(false);
-    await loadAll();
 
-    const displayName = createdTrainer?.name || newLocalTrainer?.name || trainerForm.name.trim();
-    setNotice({
-      type: 'info',
-      text: `Personal Trainer "${displayName}" added. They can log in with ${trainerForm.email.trim()} and the password you set.`,
-    });
+    if (res.success) {
+      setTrainerForm(emptyStaff);
+      setShowAddTrainerForm(false);
+      await loadAll();
+      setNotice({
+        type: 'info',
+        text: `Personal Trainer "${res.data.name}" added successfully.`,
+      });
+    } else {
+      setNotice({
+        type: 'error',
+        text: res.error || 'Failed to create trainer account.',
+      });
+    }
   };
 
   const handleAssignment = async (e) => {
@@ -106,31 +96,33 @@ function ReceptionistTrainers() {
     }
 
     setIsSaving(true);
-    try {
-      await api.assignTrainer(assignmentForm.memberId, assignmentForm.trainerId);
-    } catch {
-      // offline fallback
-    }
+    setNotice({ type: '', text: '' });
 
-    // Keep shared gymStore in sync
-    assignTrainerToMember({
-      memberId: assignmentForm.memberId,
-      trainerId: assignmentForm.trainerId,
-    });
-
+    const res = await api.assignTrainer(assignmentForm.memberId, assignmentForm.trainerId);
     setIsSaving(false);
-    const m = members.find((x) => String(x.id) === String(assignmentForm.memberId));
-    const t = trainers.find((x) => String(x.id) === String(assignmentForm.trainerId));
-    const memberName = m?.name || m?.fullName || 'the member';
-    const trainerName = t?.name || 'Trainer';
 
-    setAssignmentForm({ memberId: '', trainerId: '' });
-    await loadAll();
-    setNotice({
-      type: 'info',
-      text: `${trainerName} is now assigned to ${memberName}.`,
-    });
+    if (res.success) {
+      const m = members.find((x) => String(x.id) === String(assignmentForm.memberId));
+      const t = trainers.find((x) => String(x.id) === String(assignmentForm.trainerId));
+      const memberName = m?.name || m?.fullName || 'the member';
+      const trainerName = t?.name || 'Trainer';
+
+      setAssignmentForm({ memberId: '', trainerId: '' });
+      await loadAll();
+      setNotice({
+        type: 'info',
+        text: `${trainerName} is now assigned to ${memberName}.`,
+      });
+    } else {
+      setNotice({
+        type: 'error',
+        text: res.error || 'Failed to assign trainer to member.',
+      });
+    }
   };
+
+  // Assigned members derived directly from member records
+  const assignedMembers = members.filter((m) => m.trainerId != null);
 
   return (
     <div>
@@ -164,7 +156,7 @@ function ReceptionistTrainers() {
         </div>
       )}
 
-      {/* Add Trainer Form (Identical to Admin) */}
+      {/* Add Trainer Form */}
       {showAddTrainerForm && (
         <div className="card mb-3" style={{ border: '1px solid var(--color-primary)' }}>
           <div className="card-header">
@@ -177,7 +169,7 @@ function ReceptionistTrainers() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Vikram Singh"
+                  placeholder="Full name"
                   value={trainerForm.name}
                   onChange={(e) => setTrainerForm({ ...trainerForm, name: e.target.value })}
                   required
@@ -188,7 +180,7 @@ function ReceptionistTrainers() {
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="trainer@example.com"
+                  placeholder="trainer@fitstudio.com"
                   value={trainerForm.email}
                   onChange={(e) => setTrainerForm({ ...trainerForm, email: e.target.value })}
                   required
@@ -199,7 +191,7 @@ function ReceptionistTrainers() {
                 <input
                   type="tel"
                   className="form-input"
-                  placeholder="+91 98765 43220"
+                  placeholder="10-digit phone number"
                   value={trainerForm.phone}
                   onChange={(e) => setTrainerForm({ ...trainerForm, phone: e.target.value })}
                 />
@@ -234,13 +226,13 @@ function ReceptionistTrainers() {
         </div>
       )}
 
-      {/* Trainer-to-Member Assignment Section (Identical to Admin) */}
+      {/* Trainer-to-Member Assignment Section */}
       <div className="card mb-3">
         <div className="card-header">
           <h2 className="card-title">Trainer-to-Member Assignment</h2>
         </div>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', marginBottom: '1.25rem' }}>
-          Assign certified personal trainers to registered Premium & Standard members.
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+          Assign certified personal trainers to registered members.
         </p>
         <form onSubmit={handleAssignment} style={{ maxWidth: '650px' }}>
           <div className="grid-2">
@@ -256,7 +248,7 @@ function ReceptionistTrainers() {
                 <option value="">-- Choose Member --</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name || m.fullName} {m.plan ? `(${m.plan})` : ''}
+                    {m.name || m.fullName} (MEM-{m.id}) {m.plan ? `— ${m.plan}` : ''}
                   </option>
                 ))}
               </select>
@@ -311,23 +303,31 @@ function ReceptionistTrainers() {
               </tr>
             </thead>
             <tbody>
-              {trainers.map((t) => {
-                const clientCount = assignments.filter((a) => a.trainerId === t.id && a.status === 'Active').length;
-                return (
-                  <tr key={t.id}>
-                    <td style={{ fontWeight: 600 }}>{t.id}</td>
-                    <td style={{ fontWeight: 500 }}>{t.name}</td>
-                    <td><span className="badge badge-blue">{t.specialization || 'Strength & Conditioning'}</span></td>
-                    <td>
-                      <div>{t.phone}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{t.email}</div>
-                    </td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{t.shift || 'General'}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{clientCount}</td>
-                    <td><span className="badge badge-green">{t.status || 'Active'}</span></td>
-                  </tr>
-                );
-              })}
+              {trainers.length > 0 ? (
+                trainers.map((t) => {
+                  const clientCount = members.filter((m) => m.trainerId === t.id).length;
+                  return (
+                    <tr key={t.id}>
+                      <td style={{ fontWeight: 600 }}>STF-{t.id}</td>
+                      <td style={{ fontWeight: 500 }}>{t.name}</td>
+                      <td><span className="badge badge-blue">{t.specialization || 'Strength & Conditioning'}</span></td>
+                      <td>
+                        <div>{t.phone || '—'}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{t.email}</div>
+                      </td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>{t.shift || 'General'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{clientCount}</td>
+                      <td><span className="badge badge-green">{t.status || 'Active'}</span></td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
+                    {loading ? 'Loading trainers…' : 'No personal trainers found in the system.'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -337,9 +337,9 @@ function ReceptionistTrainers() {
       <div className="card">
         <div className="card-header">
           <div>
-            <h2 className="card-title">Member-to-Trainer Coaching Assignments</h2>
+            <h2 className="card-title">Member Coaching Assignments</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
-              Active 1-on-1 coaching arrangements for Standard and Premium members
+              Active coaching arrangements linked to registered gym members
             </p>
           </div>
         </div>
@@ -347,59 +347,39 @@ function ReceptionistTrainers() {
           <table className="table">
             <thead>
               <tr>
-                <th>Assignment #</th>
-                <th>Member Name (ID)</th>
-                <th>Assigned Coach (ID)</th>
-                <th>Coaching Focus / Goals</th>
-                <th>Frequency</th>
-                <th>Assigned Date</th>
+                <th>Member ID</th>
+                <th>Member Name</th>
+                <th>Assigned Coach</th>
+                <th>Plan Tier</th>
+                <th>Coaching Focus</th>
+                <th>Sessions/Wk</th>
                 <th>Status</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {assignments.length > 0 ? (
-                assignments.map((asn) => {
-                  const member = members.find((m) => String(m.id) === String(asn.memberId));
-                  const trainer = trainers.find((t) => String(t.id) === String(asn.trainerId));
-                  const memberDisplayName = member?.fullName || member?.name || asn.memberId;
-                  const trainerDisplayName = trainer?.name || asn.trainerId;
-
+              {assignedMembers.length > 0 ? (
+                assignedMembers.map((m) => {
+                  const trainer = trainers.find((t) => t.id === m.trainerId);
                   return (
-                    <tr key={asn.assignmentId}>
-                      <td style={{ fontWeight: 600 }}>{asn.assignmentId}</td>
-                      <td style={{ fontWeight: 500 }}>{memberDisplayName} ({asn.memberId})</td>
+                    <tr key={m.id}>
+                      <td style={{ fontWeight: 600 }}>MEM-{m.id}</td>
+                      <td style={{ fontWeight: 500 }}>{m.name || m.fullName}</td>
                       <td>
-                        <strong style={{ color: 'var(--color-primary)' }}>{trainerDisplayName}</strong>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', display: 'block' }}>{asn.trainerId}</span>
+                        <strong style={{ color: 'var(--color-primary)' }}>{trainer?.name || `Trainer #${m.trainerId}`}</strong>
                       </td>
-                      <td style={{ fontSize: '0.88rem', color: 'var(--color-text)' }}>{asn.coachingGoal}</td>
-                      <td style={{ color: 'var(--color-text-muted)' }}>{asn.sessionsPerWeek} sessions/wk</td>
-                      <td style={{ color: 'var(--color-text-muted)' }}>{asn.assignedDate}</td>
-                      <td><span className="badge badge-green">{asn.status}</span></td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.78rem' }}
-                          onClick={() => {
-                            removeAssignment(asn.assignmentId);
-                            setNotice({
-                              type: 'info',
-                              text: `Removed coaching assignment for ${memberDisplayName}. Member is now unassigned.`,
-                            });
-                          }}
-                        >
-                          Unassign
-                        </button>
+                      <td>{m.plan || '—'}</td>
+                      <td style={{ fontSize: '0.88rem' }}>{m.coachingGoal || 'General Fitness'}</td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>
+                        {m.sessionsPerWeek ? `${m.sessionsPerWeek} sessions/wk` : '—'}
                       </td>
+                      <td><span className="badge badge-green">{m.status || 'Active'}</span></td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
-                    No member-trainer assignments recorded yet.
+                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2.5rem' }}>
+                    {loading ? 'Loading assignments…' : 'No members currently assigned to personal trainers.'}
                   </td>
                 </tr>
               )}

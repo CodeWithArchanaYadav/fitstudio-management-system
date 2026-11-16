@@ -159,7 +159,7 @@ function AdminTrainers() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Vikram Singh"
+                  placeholder="Trainer full name"
                   value={trainerForm.name}
                   onChange={(e) => setTrainerForm({ ...trainerForm, name: e.target.value })}
                   required
