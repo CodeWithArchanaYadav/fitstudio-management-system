@@ -123,6 +123,22 @@ public class Member {
         this.trainerId = trainerId;
     }
 
+    public String getCoachingGoal() {
+        return coachingGoal;
+    }
+
+    public void setCoachingGoal(String coachingGoal) {
+        this.coachingGoal = coachingGoal;
+    }
+
+    public Integer getSessionsPerWeek() {
+        return sessionsPerWeek;
+    }
+
+    public void setSessionsPerWeek(Integer sessionsPerWeek) {
+        this.sessionsPerWeek = sessionsPerWeek;
+    }
+
     public LocalDate getJoinDate() {
         return joinDate;
     }

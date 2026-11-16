@@ -24,6 +24,8 @@ public class WorkoutRoutine {
 
     private String difficulty;
 
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
     @Valid
     @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("sortOrder ASC")
@@ -57,6 +59,22 @@ public class WorkoutRoutine {
         this.title = title;
     }
 
+    public String getGoal() {
+        return goal;
+    }
+
+    public void setGoal(String goal) {
+        this.goal = goal;
+    }
+
+    public String getSchedule() {
+        return schedule;
+    }
+
+    public void setSchedule(String schedule) {
+        this.schedule = schedule;
+    }
+
     public String getTargetMuscle() {
         return targetMuscle;
     }
@@ -73,12 +91,32 @@ public class WorkoutRoutine {
         this.difficulty = difficulty;
     }
 
-    public String getExercises() {
+    public List<WorkoutExercise> getExercises() {
         return exercises;
     }
 
-    public void setExercises(String exercises) {
-        this.exercises = exercises;
+    public void setExercises(List<WorkoutExercise> exercises) {
+        this.exercises.clear();
+        if (exercises != null) {
+            exercises.forEach(this::addExercise);
+        }
+    }
+
+    public void replaceExercises(List<WorkoutExercise> exercises) {
+        setExercises(exercises);
+    }
+
+    private void addExercise(WorkoutExercise exercise) {
+        exercise.setRoutine(this);
+        this.exercises.add(exercise);
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public Long getTrainerId() {

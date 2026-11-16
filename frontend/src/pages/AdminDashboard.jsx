@@ -15,19 +15,35 @@ function AdminDashboard() {
     plansCount: 0,
     monthlyRevenue: 0,
   });
+  const [recentMembers, setRecentMembers] = useState([]);
 
-  // Load live numbers from the backend and refresh every 10 seconds
+  // Refresh dashboard stats and the newest member registrations together.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const res = await api.getDashboardStats();
-      if (!cancelled && res.success && res.data) setStats((prev) => ({ ...prev, ...res.data }));
+      const [statsRes, membersRes] = await Promise.all([
+        api.getDashboardStats(),
+        api.getMembers(),
+      ]);
+      if (cancelled) return;
+      if (statsRes.success && statsRes.data) {
+        setStats((prev) => ({ ...prev, ...statsRes.data }));
+      }
+      if (membersRes.success && Array.isArray(membersRes.data)) {
+        const newestFirst = [...membersRes.data].sort((a, b) => {
+          const dateDifference = new Date(b.joinedDate || 0) - new Date(a.joinedDate || 0);
+          return dateDifference || Number(b.id) - Number(a.id);
+        });
+        setRecentMembers(newestFirst.slice(0, 5));
+      }
     };
     load();
     const timer = setInterval(load, 10000);
+    window.addEventListener('focus', load);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      window.removeEventListener('focus', load);
     };
   }, []);
 
@@ -61,6 +77,45 @@ function AdminDashboard() {
         <div className="stat-card">
           <div className="stat-label">Monthly Collections</div>
           <div className="stat-value">₹{stats.monthlyRevenue}</div>
+        </div>
+      </div>
+
+      <div className="card mb-3">
+        <div className="card-header">
+          <h2 className="card-title">Recently Registered Members</h2>
+          <Link to="/admin/members" className="btn btn-secondary btn-sm">View all members</Link>
+        </div>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Member ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th>Joined</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentMembers.length ? recentMembers.map((member) => (
+                <tr key={member.id}>
+                  <td>{member.id}</td>
+                  <td>{member.fullName || member.name}</td>
+                  <td>{member.email}</td>
+                  <td>{member.plan || '—'}</td>
+                  <td>{member.joinedDate || '—'}</td>
+                  <td>{member.status}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    No members registered yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

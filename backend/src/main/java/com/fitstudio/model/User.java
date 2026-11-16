@@ -39,6 +39,10 @@ public class User {
     @Column(nullable = false, length = 20)
     private String status = "Active";
 
+    private String specialization;
+
+    private String shift;
+
     public Long getId() {
         return id;
     }
@@ -94,4 +98,21 @@ public class User {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public String getSpecialization() {
+    return specialization;
+    }
+
+    public void setSpecialization(String specialization) {
+    this.specialization = specialization;
+    }
+
+    public String getShift() {
+    return shift;
+    }
+
+    public void setShift(String shift) {
+    this.shift = shift;
+    }
+
 }
