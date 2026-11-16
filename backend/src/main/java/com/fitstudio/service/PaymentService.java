@@ -15,8 +15,8 @@ public class PaymentService {
     private final String keySecret;
 
     public PaymentService(
-            @Value("${RAZORPAY_KEY_ID}") String keyId,
-            @Value("${RAZORPAY_KEY_SECRET}") String keySecret) {
+            @Value("${RAZORPAY_KEY_ID:rzp_test_dummy123}") String keyId,
+            @Value("${RAZORPAY_KEY_SECRET:dummySecretKey123}") String keySecret) {
         this.keyId = keyId;
         this.keySecret = keySecret;
     }

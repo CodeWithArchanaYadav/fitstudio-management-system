@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/payment")
+@RequestMapping("/api/payments")
 @CrossOrigin(origins = "http://localhost:3000") // Adjust port if your React app runs on a different port
 public class PaymentController {
 

@@ -9,6 +9,9 @@ import { api } from '../services/api';
  * Renders within the shared DashboardLayout.
  */
 function AdminDashboard() {
+
+  const [loading, setLoading] = useState(false);
+
   const [notice, setNotice] = useState('');
   const [stats, setStats] = useState({
     totalMembers: 0,
